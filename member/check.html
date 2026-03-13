@@ -377,9 +377,6 @@
                 <h1 class="page-title">校器材组成员信息 <span class="member-id" id="memberIdDisplay"></span></h1>
             </div>
             <div class="header-right">
-                <a id="deductButton" class="deduct-button">
-                    <i class="fas fa-minus-circle"></i> 一键扣分（内部）
-                </a>
             </div>
         </div>
         
@@ -410,15 +407,7 @@
             return getUrlParam('id');
         }
         
-        // 更新扣分按钮链接
-        function updateDeductButton() {
-            const memberId = getCurrentMemberId();
-            const deductButton = document.getElementById('deductButton');
-            
-            if (memberId && deductButton) {
-                deductButton.href = `../manage/deduct.html?user=${memberId}`;
-            }
-        }
+
         
         // 根据等级获取对应的样式和显示文本
         function getLevelInfo(level) {
@@ -511,8 +500,7 @@
             const contentArea = document.getElementById('contentArea');
             const memberIdDisplay = document.getElementById('memberIdDisplay');
             
-            // 更新扣分按钮链接
-            updateDeductButton();
+
             
             // 显示当前查询的ID
             if (memberId) {
@@ -558,4 +546,5 @@
         document.addEventListener('DOMContentLoaded', loadMemberInfo);
     </script>
 </body>
+
 </html>
