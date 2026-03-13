@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 添加防缓存meta标签 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>校器材组成员信息</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            padding: 30px;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+        
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #4a6cf7;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(74, 108, 247, 0.2);
+        }
+        
+        .back-button:hover {
+            background-color: #3a5ce5;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(74, 108, 247, 0.3);
+        }
+        
+        .page-title {
+            margin-left: 30px;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        
+        .member-id {
+            color: #4a6cf7;
+            font-weight: 800;
+        }
+        
+        .header-right {
+            margin-left: 20px;
+        }
+        
+        .deduct-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #ff6b6b;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .deduct-button:hover {
+            background-color: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 107, 107, 0.3);
+        }
+        
+        .content-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+        }
+        
+        .left-column {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .right-column {
+            flex: 2;
+            min-width: 300px;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f0f0f0;
+        }
+        
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title i {
+            color: #4a6cf7;
+        }
+        
+        .avatar-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        
+        .avatar {
+            width: 200px;
+            height: 200px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 5px solid white;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .avatar-placeholder {
+            width: 200px;
+            height: 200px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 48px;
+            font-weight: 700;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .member-info {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            width: 100px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-value {
+            flex: 1;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .level-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .level-ring {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 900;
+            color: #333;
+            position: relative;
+            border: 5px solid;
+        }
+        
+        .level-a {
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+        
+        .level-b {
+            border-color: #1b5e20;
+            color: #1b5e20;
+        }
+        
+        .level-c {
+            border-color: #ff8c00;
+            color: #ff8c00;
+        }
+        
+        .level-d {
+            border-color: #d32f2f;
+            color: #d32f2f;
+        }
+        
+        .level-text {
+            font-weight: 600;
+        }
+        
+        .markdown-content {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #4a6cf7;
+            min-height: 300px;
+        }
+        
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin-top: 1.2em;
+            margin-bottom: 0.6em;
+        }
+        
+        .markdown-content p {
+            margin-bottom: 1em;
+        }
+        
+        .markdown-content ul,
+        .markdown-content ol {
+            margin-left: 20px;
+            margin-bottom: 1em;
+        }
+        
+        .markdown-content code {
+            background-color: #eef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .markdown-content pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 15px;
+            color: #666;
+            margin: 1em 0;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(74, 108, 247, 0.2);
+            border-top-color: #4a6cf7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #d32f2f;
+            background-color: #ffebee;
+            border-radius: 8px;
+            border-left: 4px solid #d32f2f;
+        }
+        
+        @media (max-width: 768px) {
+            .content-wrapper {
+                flex-direction: column;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+            
+            .header-left {
+                width: 100%;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .page-title {
+                margin-left: 0;
+                font-size: 24px;
+            }
+            
+            .header-right {
+                width: 100%;
+                margin-left: 0;
+            }
+            
+            .deduct-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <a href="home.html" class="back-button">
+                    <i class="fas fa-arrow-left"></i> 返回首页
+                </a>
+                <h1 class="page-title">校器材组成员信息 <span class="member-id" id="memberIdDisplay"></span></h1>
+            </div>
+            <div class="header-right">
+                <a id="deductButton" class="deduct-button">
+                    <i class="fas fa-minus-circle"></i> 一键扣分（内部）
+                </a>
+            </div>
+        </div>
+        
+        <div id="contentArea">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>正在加载成员信息...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入Markdown解析库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        // 获取当前时间戳，用于防缓存
+        const TIMESTAMP = Date.now();
+        
+        // 获取URL参数
+        function getUrlParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const param = urlParams.get(name);
+            return param;
+        }
+        
+        // 获取当前成员ID
+        function getCurrentMemberId() {
+            return getUrlParam('id');
+        }
+        
+        // 更新扣分按钮链接
+        function updateDeductButton() {
+            const memberId = getCurrentMemberId();
+            const deductButton = document.getElementById('deductButton');
+            
+            if (memberId && deductButton) {
+                deductButton.href = `../manage/deduct.html?user=${memberId}`;
+            }
+        }
+        
+        // 根据等级获取对应的样式和显示文本
+        function getLevelInfo(level) {
+            if (!level) return { class: 'level-d', text: '不合格' };
+            
+            const levelLower = level.toLowerCase();
+            const levelMap = {
+                'a': { class: 'level-a', text: '优秀' },
+                'b': { class: 'level-b', text: '良好' },
+                'c': { class: 'level-c', text: '合格' },
+                'd': { class: 'level-d', text: '不合格' }
+            };
+            
+            return levelMap[levelLower] || levelMap['d'];
+        }
+        
+        // 渲染成员信息
+        function renderMemberInfo(memberId, memberData) {
+            const levelInfo = getLevelInfo(memberData.level);
+            // 添加时间戳参数防止头像缓存
+            const avatarUrl = `member_info/${memberId}/head.jpg?t=${TIMESTAMP}`;
+            const defaultAvatarText = memberData.name ? memberData.name.charAt(0) : '?';
+            
+            return `
+                <div class="content-wrapper">
+                    <div class="left-column">
+                        <div class="card">
+                            <h2 class="card-title"><i class="fas fa-user"></i> 基本信息</h2>
+                            <div class="avatar-container">
+                                <img src="${avatarUrl}" alt="${memberData.name}的头像" class="avatar" id="memberAvatar" onerror="this.onerror=null; this.style.display='none'; document.getElementById('avatarPlaceholder').style.display='flex';">
+                                <div id="avatarPlaceholder" class="avatar-placeholder" style="display: none;">${defaultAvatarText}</div>
+                            </div>
+                            <div class="member-info">
+                                <div class="info-row">
+                                    <div class="info-label"><i class="fas fa-signature"></i> 姓名</div>
+                                    <div class="info-value">${memberData.name || '未知'}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label"><i class="fas fa-phone-alt"></i> 联系方式</div>
+                                    <div class="info-value">${memberData.contact || '未提供'}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label"><i class="fas fa-briefcase"></i> 职位</div>
+                                    <div class="info-value">${memberData.position || '未指定'}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label"><i class="fas fa-chart-line"></i> 等级</div>
+                                    <div class="info-value">
+                                        <div class="level-container">
+                                            <div class="level-ring ${levelInfo.class}">${levelInfo.class.charAt(levelInfo.class.length-1).toUpperCase()}</div>
+                                            <span class="level-text">${levelInfo.text}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="right-column">
+                        <div class="card">
+                            <h2 class="card-title"><i class="fas fa-file-alt"></i> 成员简介</h2>
+                            <div class="markdown-content" id="bioContent">
+                                ${memberData.bio ? marked.parse(memberData.bio) : '<p>暂无成员简介</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            return `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                    <h3>加载失败</h3>
+                    <p>${message}</p>
+                    <p style="margin-top: 20px;">
+                        <a href="home.html" class="back-button">
+                            <i class="fas fa-home"></i> 返回首页
+                        </a>
+                    </p>
+                </div>
+            `;
+        }
+        
+        // 主函数：加载并显示成员信息
+        async function loadMemberInfo() {
+            const memberId = getCurrentMemberId();
+            const contentArea = document.getElementById('contentArea');
+            const memberIdDisplay = document.getElementById('memberIdDisplay');
+            
+            // 更新扣分按钮链接
+            updateDeductButton();
+            
+            // 显示当前查询的ID
+            if (memberId) {
+                memberIdDisplay.textContent = `(ID: ${memberId})`;
+            } else {
+                contentArea.innerHTML = showError('未提供成员ID参数，请在URL中添加?id=成员ID');
+                return;
+            }
+            
+            // 构造信息文件路径，添加时间戳参数防止缓存
+            const infoFilePath = `member_info/${memberId}/information.json?t=${TIMESTAMP}`;
+            
+            try {
+                // 使用fetch获取JSON文件，禁用缓存
+                const response = await fetch(infoFilePath, {
+                    cache: 'no-store', // 禁用缓存
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                
+                // 解析JSON数据
+                const memberData = await response.json();
+                
+                // 验证JSON数据
+                if (!memberData) {
+                    throw new Error('JSON数据为空');
+                }
+                
+                // 渲染成员信息
+                contentArea.innerHTML = renderMemberInfo(memberId, memberData);
+                
+            } catch (error) {
+                contentArea.innerHTML = showError(`无法加载ID为 ${memberId} 的成员信息`);
+            }
+        }
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', loadMemberInfo);
+    </script>
+</body>
+</html>

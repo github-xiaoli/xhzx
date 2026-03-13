@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>徐汇中学器材管理组</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f9ff;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(#e1ecff 2px, transparent 2px),
+                radial-gradient(#d4e3ff 2px, transparent 2px);
+            background-size: 80px 80px;
+            background-position: 0 0, 40px 40px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+        }
+        
+        /* 头部样式 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 25px 0;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #d4e3ff;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 2.8rem;
+            color: #1e3c72;
+            margin-right: 20px;
+            animation: spin 20s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .title-container h1 {
+            color: #1e3c72;
+            font-size: 2.4rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        .title-container .subtitle {
+            color: #5a7dcc;
+            font-size: 1.1rem;
+            margin-top: 5px;
+            letter-spacing: 0.5px;
+        }
+        
+        .header-right {
+            display: flex;
+            gap: 25px;
+        }
+        
+        .nav-btn {
+            padding: 14px 30px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-btn i {
+            margin-right: 10px;
+            font-size: 1.3rem;
+        }
+        
+        .btn-manage {
+            background: linear-gradient(to right, #ff8000, #e38204);
+            color: white;
+        }
+        
+        .btn-manage:hover {
+            background: linear-gradient(to right, #e38204, #ff8000);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(42, 82, 152, 0.3);
+        }
+        
+        .btn-member {
+            background: linear-gradient(to right, #2a5298, #1e3c72);
+            color: white;
+        }
+        
+        .btn-member:hover {
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(42, 82, 152, 0.3);
+        }
+        
+        .btn-join {
+            background: linear-gradient(to right, #28a745, #1e7e34);
+            color: white;
+        }
+        
+        .btn-join:hover {
+            background: linear-gradient(to right, #1e7e34, #28a745);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        /* 正文区域 */
+        .content-area {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 60, 150, 0.1);
+            margin-bottom: 40px;
+            border-left: 5px solid #2a5298;
+        }
+        
+        .content-title {
+            color: #1e3c72;
+            font-size: 2.2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e1ecff;
+            display: flex;
+            align-items: center;
+        }
+        
+        .content-title i {
+            margin-right: 15px;
+            color: #2a5298;
+        }
+        
+        .content-text {
+            line-height: 1.8;
+            font-size: 1.15rem;
+            color: #444;
+        }
+        
+        .content-text p {
+            margin-bottom: 20px;
+        }
+        
+        .content-text ul, .content-text ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .content-text li {
+            margin-bottom: 10px;
+        }
+        
+        .content-text strong {
+            color: #1e3c72;
+        }
+        
+        /* 特色区域 */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+            border-top: 4px solid #2a5298;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-card i {
+            font-size: 2.5rem;
+            color: #2a5298;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        /* 底部信息 */
+        footer {
+            text-align: center;
+            padding: 25px 0;
+            margin-top: 40px;
+            color: #1e3c72;
+            font-size: 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-top: 1px solid #d4e3ff;
+        }
+        
+        .contact-info {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-top: 15px;
+            font-size: 0.95rem;
+        }
+        
+        .contact-info div {
+            display: flex;
+            align-items: center;
+        }
+        
+        .contact-info i {
+            margin-right: 8px;
+            color: #2a5298;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 992px) {
+            .header-right {
+                gap: 15px;
+            }
+            
+            .nav-btn {
+                padding: 12px 20px;
+                font-size: 1.1rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 25px;
+            }
+            
+            .header-right {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .content-area {
+                padding: 25px;
+            }
+            
+            .content-title {
+                font-size: 1.8rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .header-right {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .nav-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .logo {
+                font-size: 2.2rem;
+                margin-right: 15px;
+            }
+            
+            .title-container h1 {
+                font-size: 1.9rem;
+            }
+            
+            .title-container .subtitle {
+                font-size: 1rem;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 自定义区域样式示例 */
+        .custom-section {
+            background: #f0f7ff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .custom-section h3 {
+            color: #1e7e34;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .highlight {
+            background-color: #fff8e1;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+        
+        .highlight strong {
+            color: #e65100;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部：标题在左，按钮在右 -->
+        <header>
+            <div class="header-left">
+                <img src="image/football.png" width="70" height="70">
+                <div class="title-container">
+                    <h1>徐汇中学器材管理组</h1>
+                    <div class="subtitle">专业管理，服务师生</div>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <a href="/manage/index.html" class="nav-btn btn-manage">
+                    <i></i> 成员管理（内部）
+                </a>
+                <a href="/member/home.html" class="nav-btn btn-member">
+                    <i class="fas fa-users"></i> 查询成员
+                </a>
+                <a href="contact.html" class="nav-btn btn-join">
+                    <i class="fas fa-paper-plane"></i> 联系方式
+                </a>
+            </div>
+        </header>
+        
+        <!-- 正文区域（可自定义内容） -->
+        <main>
+            <div class="content-area">
+                <h2 class="content-title"><i class="fas fa-info-circle"></i> 关于器材管理组</h2>
+                <div class="content-text">
+                    <p>欢迎访问徐汇中学器材管理组官方网站。我们是一个由学生自主管理的团队，负责学校体育器材的日常管理、维护和分配工作。</p>
+                    
+                    <p>自成立以来，我们已发展成为拥有10余名成员的专业管理团队，管理着包括足球、篮球、排球在内的体育器材，确保学校体育教学和社团活动的顺利进行。</p>
+                    
+                    <div class="highlight">
+                        <p><strong>我们的使命：</strong>为全校师生提供高效、便捷的器材服务，促进校园体育文化发展，培养学生的责任感和团队合作精神。</p>
+                    </div>
+                    
+                    <h3>主要职责：</h3>
+                    <ul>
+                        <li><strong>课前：</strong>拿取器材室钥匙，进入器材室拿取老师需要的器材</li>
+                        <li><strong>地下室：</strong>如果需要使用地下乒乓室，我们会提前进入打开电源及通风</li>
+                        <li><strong>打气：</strong>我们会经常观察球类器材压力，及时进行打气</li>
+                        <li><strong>课后：</strong>我们会回收器材并清点数量，归还器材室钥匙</li>
+                    </ul>
+                    
+                    <div class="custom-section">
+                        <h3><i class="fas fa-bullhorn"></i> 最新通知</h3>
+                        <p><strong>球车专用道:</strong>操场跑道画线区域为专用车道，请勿恶意占用</p>
+                        <p><strong>注意事项:</strong>我们编写了以下关于器材管理和乒乓球房的注意事项，请点击<a href="notice.html" target="_blank">此处</a>查看</p>
+                    </div>
+                </div>
+            </div>
+            
+            
+        </main>
+        
+        <footer>
+            <p>© 2026 徐汇中学器材管理组 版权所有</p>
+            <div class="contact-info">
+                <div><i class="fas fa-map-marker-alt"></i> 地址：上海市徐汇区华发路68号体育办公室</div>
+                <div><i class="fas fa-envelope"></i> 微信（曹博豪）：Bobcao918</div>
+                <div><i class="fas fa-envelope"></i> 邮箱（李语晨）：liyuchen120416@163.com</div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+      
+        
+        // 页面加载动画
+        window.addEventListener('load', function() {
+            // 头部元素动画
+            const headerLeft = document.querySelector('.header-left');
+            const headerRight = document.querySelector('.header-right');
+            
+            headerLeft.style.opacity = '0';
+            headerLeft.style.transform = 'translateX(-20px)';
+            headerRight.style.opacity = '0';
+            headerRight.style.transform = 'translateX(20px)';
+            
+            setTimeout(() => {
+                headerLeft.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                headerLeft.style.opacity = '1';
+                headerLeft.style.transform = 'translateX(0)';
+                
+                headerRight.style.transition = 'opacity 0.6s ease 0.2s, transform 0.6s ease 0.2s';
+                headerRight.style.opacity = '1';
+                headerRight.style.transform = 'translateX(0)';
+                
+                // 内容区域动画
+                const contentAreas = document.querySelectorAll('.content-area');
+                contentAreas.forEach((area, index) => {
+                    area.style.opacity = '0';
+                    area.style.transform = 'translateY(20px)';
+                    
+                    setTimeout(() => {
+                        area.style.transition = `opacity 0.6s ease ${0.4 + index*0.2}s, transform 0.6s ease ${0.4 + index*0.2}s`;
+                        area.style.opacity = '1';
+                        area.style.transform = 'translateY(0)';
+                    }, 100);
+                });
+            }, 300);
+        });
+        
+        // 足球图标交互效果
+        const footballLogo = document.querySelector('.logo');
+        footballLogo.addEventListener('mouseenter', function() {
+            this.style.animation = 'spin 2s linear infinite';
+        });
+        
+        footballLogo.addEventListener('mouseleave', function() {
+            this.style.animation = 'spin 20s linear infinite';
+        });
+    </script>
+</body>
+</html>

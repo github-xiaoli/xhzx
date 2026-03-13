@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 器材组成员管理系统</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="nav-bar">
+            <div class="logo">
+                <h1>用户管理</h1>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="btn btn-secondary">返回首页</a>
+                <button onclick="logout()" class="logout-btn">退出登录</button>
+            </div>
+        </div>
+        
+        <div id="alert" class="alert hidden"></div>
+        
+        <div class="header">
+            <h2>用户管理</h2>
+            <div class="user-info">管理员权限 - 可管理所有用户</div>
+        </div>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button onclick="showAddUserForm()" class="btn btn-success">添加新用户</button>
+        </div>
+        
+        <div id="addUserForm" class="hidden" style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 5px;">
+            <h3>添加新用户</h3>
+            <form id="newUserForm">
+                <div class="form-group">
+                    <label for="new_username">用户名 *</label>
+                    <input type="text" id="new_username" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new_real_name">真实姓名 *</label>
+                    <input type="text" id="new_real_name" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new_password">密码 *</label>
+                    <input type="password" id="new_password" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new_role">角色 *</label>
+                    <select id="new_role" class="form-control" required>
+                        <option value="guest">访客</option>
+                        <option value="user">用户</option>
+                        <option value="root">管理员</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">添加用户</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideAddUserForm()">取消</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="table-container">
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>真实姓名</th>
+                        <th>角色</th>
+                        <th>当前分数</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        
+        async function checkLogin() {
+            try {
+                const response = await fetch('/api/users/current');
+                const data = await response.json();
+                
+                if (!data.username) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                currentUser = data;
+                
+                if (currentUser.role !== 'root') {
+                    showAlert('只有管理员可以访问此页面', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                    return;
+                }
+                
+                loadUsers();
+            } catch (error) {
+                window.location.href = 'login.html';
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users/list');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    renderUsersTable(data.users || []);
+                }
+            } catch (error) {
+                console.error('加载用户失败:', error);
+                showAlert('加载用户列表失败', 'error');
+            }
+        }
+        
+        function renderUsersTable(users) {
+            const tableBody = document.querySelector('#usersTable tbody');
+            tableBody.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                
+                const roleBadge = user.role === 'root' ? '管理员' : 
+                                 user.role === 'user' ? '用户' : '访客';
+                
+                row.innerHTML = `
+                    <td>${user.username}</td>
+                    <td>${user.real_name || '-'}</td>
+                    <td><span class="role-badge role-${user.role}">${roleBadge}</span></td>
+                    <td class="${user.score > 0 ? 'score-positive' : ''}">${user.score || '0'}</td>
+                    <td>${user.created || '-'}</td>
+                    <td>
+                        <button onclick="switchToUser('${user.username}')" class="btn btn-sm">切换到此用户</button>
+                        <a href="deduct.html?user=${user.username}" class="btn btn-sm btn-success">扣分</a>
+                        ${user.username !== 'root' && user.username !== currentUser.username ? `
+                        <button onclick="deleteUser('${user.username}')" class="btn btn-sm btn-danger">删除</button>
+                        ` : ''}
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        async function switchToUser(username) {
+            if (!confirm(`确定要切换到用户 ${username} 吗？`)) {
+                return;
+            }
+            
+            try {
+                // 使用专门的切换接口
+                const response = await fetch(`/api/users/switch/${username}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showAlert(data.message || `已切换到用户 ${username}`, 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    showAlert(data.error || '切换用户失败', 'error');
+                }
+            } catch (error) {
+                showAlert('网络错误，请稍后重试', 'error');
+            }
+        }
+        
+        function showAddUserForm() {
+            document.getElementById('addUserForm').classList.remove('hidden');
+        }
+        
+        function hideAddUserForm() {
+            document.getElementById('addUserForm').classList.add('hidden');
+            document.getElementById('newUserForm').reset();
+        }
+        
+        document.getElementById('newUserForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('new_username').value;
+            const real_name = document.getElementById('new_real_name').value;
+            const password = document.getElementById('new_password').value;
+            const role = document.getElementById('new_role').value;
+            
+            const alertDiv = document.getElementById('alert');
+            alertDiv.className = 'alert hidden';
+            
+            try {
+                const response = await fetch('/api/users/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        real_name: real_name,
+                        password: password,
+                        role: role
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alertDiv.className = 'alert alert-success';
+                    alertDiv.textContent = '用户添加成功！';
+                    
+                    hideAddUserForm();
+                    loadUsers();
+                } else {
+                    alertDiv.className = 'alert alert-error';
+                    alertDiv.textContent = data.error || '添加用户失败';
+                }
+            } catch (error) {
+                alertDiv.className = 'alert alert-error';
+                alertDiv.textContent = '网络错误，请稍后重试';
+            }
+        });
+        
+        async function deleteUser(username) {
+            if (!confirm(`确定要删除用户 ${username} 吗？此操作不可撤销！`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/users/delete/${username}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showAlert('用户删除成功', 'success');
+                    loadUsers();
+                } else {
+                    showAlert(data.error || '删除用户失败', 'error');
+                }
+            } catch (error) {
+                showAlert('网络错误', 'error');
+            }
+        }
+        
+        async function logout() {
+            try {
+                await fetch('/api/users/logout', {
+                    method: 'POST'
+                });
+                window.location.href = 'login.html';
+            } catch (error) {
+                window.location.href = 'login.html';
+            }
+        }
+        
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                alertDiv.className = 'alert hidden';
+            }, 3000);
+        }
+        
+        window.onload = checkLogin;
+    </script>
+</body>
+</html>
