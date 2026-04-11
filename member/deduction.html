@@ -6,6 +6,7 @@
     <title>智能扣分系统 - 徐汇中学器材管理组</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* 样式保持不变，省略重复... 为了完整性保留 */
         * {
             margin: 0;
             padding: 0;
@@ -162,9 +163,6 @@
         .search-box input {
             flex: 1;
         }
-        hr {
-            margin: 20px 0;
-        }
         .sort-controls {
             margin-bottom: 10px;
             text-align: right;
@@ -212,7 +210,6 @@
         </div>
     </header>
 
-    <!-- 扣分表单（卡密自动从Cookie读取） -->
     <div class="content-card">
         <h2 class="card-title"><i class="fas fa-minus-circle"></i> 扣分操作</h2>
         <div id="deductAlert" class="alert"></div>
@@ -238,7 +235,6 @@
         </form>
     </div>
 
-    <!-- 个人查询 -->
     <div class="content-card">
         <h2 class="card-title"><i class="fas fa-user-check"></i> 个人分数与记录查询</h2>
         <div class="search-box">
@@ -248,7 +244,6 @@
         <div id="personalResult"></div>
     </div>
 
-    <!-- 用户列表（所有学生当前分数） -->
     <div class="content-card">
         <h2 class="card-title"><i class="fas fa-users"></i> 用户列表与当前分数</h2>
         <div class="sort-controls">
@@ -260,7 +255,6 @@
         <div id="userListPagination" class="pagination"></div>
     </div>
 
-    <!-- 全局扣分记录列表 -->
     <div class="content-card">
         <h2 class="card-title"><i class="fas fa-list-alt"></i> 所有扣分记录</h2>
         <div id="allRecordsResult"></div>
@@ -276,49 +270,63 @@
     const GITHUB_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents`;
     const COOKIE_NAME = "card_key";
     const COOKIE_EXPIRE_DAYS = 30;
-
+    
+    let globalToken = null;          // 存储当前有效的 GitHub Token
+    let globalCardKey = null;        // 存储卡密（用于调试）
+    
     // Cookie 操作
     function setCookie(name, value, days) {
         const expires = new Date();
         expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
         document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+        console.log(`Cookie 已设置: ${name}=${value}`);
     }
     function getCookie(name) {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-        return match ? match[2] : null;
+        const value = match ? match[2] : null;
+        console.log(`读取 Cookie ${name}: ${value}`);
+        return value;
     }
-
-    // 从卡密获取 Token
+    
+    // 从卡密获取 Token（关键：trim 去空格换行）
     async function getTokenFromCard(cardKey) {
         const url = `${GITHUB_API}/key/${cardKey}?ref=${BRANCH}`;
+        // 注意：读取卡密文件本身不能使用认证（因为还没有 token），但仓库是公开的，所以允许未认证读取
         const response = await fetch(url, {
             headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
         if (!response.ok) throw new Error(`卡密无效或不存在: ${cardKey}`);
         const data = await response.json();
-        const token = atob(data.content.replace(/\n/g, ''));
-        return token.trim();
+        const token = atob(data.content.replace(/\n/g, '')).trim();
+        if (!token) throw new Error(`卡密 ${cardKey} 对应的 Token 为空`);
+        return token;
     }
-
-    // 验证卡密是否有效
-    async function verifyCardKey(cardKey) {
+    
+    // 验证卡密是否有效并设置 globalToken
+    async function verifyAndSetToken(cardKey) {
         try {
-            await getTokenFromCard(cardKey);
+            const token = await getTokenFromCard(cardKey);
+            globalToken = token;
+            globalCardKey = cardKey;
             return true;
         } catch(e) {
+            console.warn(`卡密验证失败: ${e.message}`);
+            globalToken = null;
+            globalCardKey = null;
             return false;
         }
     }
-
-    // 初始化卡密（首次访问）
-    async function initCardKey() {
+    
+    // 初始化卡密：优先从 Cookie 读取，验证有效则设置 globalToken，否则弹出输入框
+    async function initCardKey(forceReinput = false) {
         let cardKey = getCookie(COOKIE_NAME);
-        if (cardKey) {
-            // 验证是否仍然有效
-            const valid = await verifyCardKey(cardKey);
-            if (valid) return cardKey;
-            else {
-                // 无效则清除并重新要求输入
+        if (!forceReinput && cardKey) {
+            const valid = await verifyAndSetToken(cardKey);
+            if (valid) {
+                console.log("Cookie 中的卡密有效，已设置 Token");
+                return cardKey;
+            } else {
+                console.log("Cookie 中的卡密已失效，清除并重新输入");
                 document.cookie = `${COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
             }
         }
@@ -327,10 +335,10 @@
         while (!newKey) {
             newKey = prompt("请输入卡密（API密钥）以进行扣分操作：");
             if (newKey === null) {
-                alert("必须输入卡密才能使用扣分功能，但查询功能不受影响。");
+                alert("必须输入卡密才能使用扣分功能，但查询功能不受影响。不过未认证请求速率很低，建议输入。");
                 return null;
             }
-            const valid = await verifyCardKey(newKey);
+            const valid = await verifyAndSetToken(newKey);
             if (valid) {
                 setCookie(COOKIE_NAME, newKey, COOKIE_EXPIRE_DAYS);
                 return newKey;
@@ -341,17 +349,19 @@
         }
         return null;
     }
-
-    // 通用 GitHub API 请求（带 token）
-    async function githubRequest(method, url, token, body = null) {
+    
+    // 带认证的 GitHub API 请求（用于读取和写入）
+    async function githubRequest(method, url, body = null, useAuth = true) {
         const options = {
             method,
             headers: {
-                'Authorization': `token ${token}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json'
             }
         };
+        if (useAuth && globalToken) {
+            options.headers['Authorization'] = `token ${globalToken}`;
+        }
         if (body) options.body = JSON.stringify(body);
         const response = await fetch(url, options);
         if (!response.ok) {
@@ -361,21 +371,46 @@
         if (method === 'DELETE') return null;
         return await response.json();
     }
-
-    // 获取文件内容（不需要 token，公开仓库）
+    
+    // 获取文件内容（优先使用全局 Token 认证）
     async function getFileContent(path) {
         const url = `${GITHUB_API}/${path}?ref=${BRANCH}`;
-        const res = await fetch(url);
-        if (!res.ok) {
-            if (res.status === 404) return null;
-            throw new Error(`读取文件失败: ${path}`);
+        try {
+            // 如果有全局 Token，使用认证请求
+            if (globalToken) {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${globalToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 404) return null;
+                    throw new Error(`读取文件失败: ${path}, status ${response.status}`);
+                }
+                const data = await response.json();
+                return data;
+            } else {
+                // 降级为未认证（但可能受速率限制）
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (!response.ok) {
+                    if (response.status === 404) return null;
+                    throw new Error(`读取文件失败: ${path}`);
+                }
+                const data = await response.json();
+                return data;
+            }
+        } catch(e) {
+            console.error(`getFileContent 错误: ${e.message}`);
+            throw e;
         }
-        const data = await res.json();
-        return data;
     }
-
-    // 创建或更新文件（需要 token）
-    async function createOrUpdateFile(path, content, token, commitMsg) {
+    
+    // 创建或更新文件（需要 token，所以必须已有 globalToken）
+    async function createOrUpdateFile(path, content, commitMsg) {
+        if (!globalToken) throw new Error("未设置 Token，无法写入文件");
         let sha = null;
         try {
             const existing = await getFileContent(path);
@@ -388,11 +423,12 @@
             branch: BRANCH
         };
         if (sha) body.sha = sha;
-        return await githubRequest('PUT', url, token, body);
+        return await githubRequest('PUT', url, body, true);
     }
-
+    
     // 上传附件
-    async function uploadAttachment(studentId, timestamp, file, token) {
+    async function uploadAttachment(studentId, timestamp, file) {
+        if (!globalToken) throw new Error("未设置 Token，无法上传附件");
         const safeName = `${timestamp.replace(/:/g, '-').replace(/\./g, '-')}_${file.name}`;
         const path = `deductions/${studentId}/attachments/${safeName}`;
         return new Promise((resolve, reject) => {
@@ -406,7 +442,7 @@
                     branch: BRANCH
                 };
                 try {
-                    await githubRequest('PUT', url, token, body);
+                    await githubRequest('PUT', url, body, true);
                     resolve(path);
                 } catch(err) {
                     reject(err);
@@ -416,16 +452,18 @@
             reader.readAsDataURL(file);
         });
     }
-
+    
     // 获取所有学生学号
     async function getAllStudentIds() {
         const url = `${GITHUB_API}/member/member_info?ref=${BRANCH}`;
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            headers: globalToken ? { 'Authorization': `token ${globalToken}`, 'Accept': 'application/vnd.github.v3+json' } : { 'Accept': 'application/vnd.github.v3+json' }
+        });
         if (!res.ok) return [];
         const data = await res.json();
         return data.filter(item => item.type === 'dir').map(dir => dir.name);
     }
-
+    
     // 获取学生当前分数
     async function getStudentScore(studentId) {
         const path = `scores/${studentId}.json`;
@@ -438,18 +476,20 @@
             return 0;
         }
     }
-
+    
     // 获取学生的所有扣分记录文件列表
     async function getStudentDeductionFiles(studentId) {
         const dirPath = `deductions/${studentId}`;
         const url = `${GITHUB_API}/${dirPath}?ref=${BRANCH}`;
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            headers: globalToken ? { 'Authorization': `token ${globalToken}`, 'Accept': 'application/vnd.github.v3+json' } : { 'Accept': 'application/vnd.github.v3+json' }
+        });
         if (!res.ok) return [];
         const data = await res.json();
         if (!Array.isArray(data)) return [];
         return data.filter(item => item.type === 'file' && item.name.endsWith('.json')).map(f => f.name);
     }
-
+    
     // 读取单个扣分记录
     async function getDeductionRecord(studentId, filename) {
         const path = `deductions/${studentId}/${filename}`;
@@ -461,7 +501,7 @@
             return null;
         }
     }
-
+    
     // 获取所有学生的完整数据（用于用户列表）
     async function getAllStudentsData() {
         const studentIds = await getAllStudentIds();
@@ -472,7 +512,7 @@
         }
         return results;
     }
-
+    
     // 获取所有扣分记录（全局）
     async function getAllDeductionRecords() {
         const studentIds = await getAllStudentIds();
@@ -489,17 +529,16 @@
                 }
             }
         }
-        // 按时间倒序
         allRecords.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         return allRecords;
     }
-
-    // ========== 用户列表渲染（分页、排序） ==========
+    
+    // ========== 用户列表渲染 ==========
     let allUsersData = [];
     let currentUserPage = 1;
     const userPageSize = 10;
-    let currentUserSort = "score_desc"; // score_desc 或 id_asc
-
+    let currentUserSort = "score_desc";
+    
     function renderUserList() {
         let sorted = [...allUsersData];
         if (currentUserSort === "score_desc") {
@@ -512,9 +551,9 @@
         const pageData = sorted.slice(start, end);
         let html = `<table><thead><tr><th>学号</th><th>当前总分</th></tr></thead><tbody>`;
         pageData.forEach(item => {
-            html += `<tr><td>${item.studentId}</td><td>${item.currentScore}</td></tr>`;
+            html += `<tr><td>${item.studentId}${item.studentId}${item.currentScore}   `;
         });
-        html += `</tbody></table>`;
+        html += `</tbody>`,
         document.getElementById('userListResult').innerHTML = html;
         
         const totalPages = Math.ceil(allUsersData.length / userPageSize);
@@ -524,17 +563,17 @@
         }
         document.getElementById('userListPagination').innerHTML = paginationHtml;
     }
-
+    
     window.goToUserPage = function(page) {
         currentUserPage = page;
         renderUserList();
     };
-
-    // ========== 全局扣分记录渲染（分页） ==========
+    
+    // ========== 全局扣分记录渲染 ==========
     let allRecordsData = [];
     let currentRecordPage = 1;
     const recordPageSize = 10;
-
+    
     function renderAllRecords() {
         const start = (currentRecordPage-1)*recordPageSize;
         const end = start + recordPageSize;
@@ -553,14 +592,10 @@
                 attachHtml = '无';
             }
             html += `<tr>
-                        <td>${rec.studentId}</td>
-                        <td style="color:red;">${rec.points}</td>
-                        <td>${rec.reason}</td>
-                        <td>${new Date(rec.timestamp).toLocaleString()}</td>
-                        <td>${attachHtml}</td>
-                     </tr>`;
+                        <td>${rec.studentId}${rec.studentId}${rec.points}${rec.reason}${new Date(rec.timestamp).toLocaleString()}${attachHtml}
+                      `;
         });
-        html += `</tbody></table>`;
+        html += `</tbody>`,
         document.getElementById('allRecordsResult').innerHTML = html;
         
         const totalPages = Math.ceil(allRecordsData.length / recordPageSize);
@@ -570,24 +605,39 @@
         }
         document.getElementById('allRecordsPagination').innerHTML = paginationHtml;
     }
-
+    
     window.goToRecordPage = function(page) {
         currentRecordPage = page;
         renderAllRecords();
     };
-
-    // 刷新所有数据（用户列表、全局记录）
+    
+    // 刷新所有数据
     async function refreshAllData() {
-        // 用户列表
-        allUsersData = await getAllStudentsData();
-        currentUserPage = 1;
-        renderUserList();
-        // 全局扣分记录
-        allRecordsData = await getAllDeductionRecords();
-        currentRecordPage = 1;
-        renderAllRecords();
+        try {
+            allUsersData = await getAllStudentsData();
+            currentUserPage = 1;
+            renderUserList();
+            allRecordsData = await getAllDeductionRecords();
+            currentRecordPage = 1;
+            renderAllRecords();
+        } catch(e) {
+            console.error("刷新数据失败", e);
+            showGlobalAlert("数据加载失败，可能速率限制或网络问题。请确保已输入有效卡密。", "error");
+        }
     }
-
+    
+    function showGlobalAlert(message, type) {
+        // 简单弹窗提示，也可以显示在顶部
+        alert(message);
+    }
+    
+    function showAlert(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        setTimeout(() => { container.innerHTML = ''; }, 5000);
+    }
+    
     // 个人查询
     document.getElementById('queryBtn').onclick = async () => {
         const studentId = document.getElementById('queryStudentId').value.trim();
@@ -608,7 +658,7 @@
             if (records.length === 0) {
                 html += `<p>暂无扣分记录。</p>`;
             } else {
-                html += `<table><thead><tr><th>时间</th><th>扣分分值</th><th>原因</th><th>附件</th></tr></thead><tbody>`;
+                html += `able<thead><tr><th>时间</th><th>扣分分值</th><th>原因</th><th>附件</th></tr></thead><tbody>`;
                 records.forEach(rec => {
                     let attachHtml = '';
                     if (rec.attachments && rec.attachments.length) {
@@ -616,41 +666,31 @@
                     } else {
                         attachHtml = '无';
                     }
-                    html += `<tr><td>${new Date(rec.timestamp).toLocaleString()}</td><td style="color:red;">${rec.points}</td><td>${rec.reason}</td><td>${attachHtml}</td></tr>`;
+                    html += `<tr>
+                                <td>${new Date(rec.timestamp).toLocaleString()}${rec.points}${rec.reason}${attachHtml}
+                              `;
                 });
-                html += `</tbody></table>`;
+                html += `</tbody>`,
             }
             document.getElementById('personalResult').innerHTML = html;
         } catch(e) {
             showAlert('personalResult', `查询失败: ${e.message}`, 'error');
         }
     };
-
-    function showAlert(containerId, message, type) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-        setTimeout(() => { container.innerHTML = ''; }, 5000);
-    }
-
-    // 扣分提交（从Cookie读取卡密）
+    
+    // 扣分提交
     document.getElementById('deductForm').onsubmit = async (e) => {
         e.preventDefault();
         const alertDiv = document.getElementById('deductAlert');
         alertDiv.style.display = 'none';
         
-        // 获取卡密
-        let cardKey = getCookie(COOKIE_NAME);
-        if (!cardKey) {
-            showAlert('deductAlert', '未找到卡密，请刷新页面重新输入', 'error');
-            return;
-        }
-        // 验证卡密有效性
-        const valid = await verifyCardKey(cardKey);
-        if (!valid) {
-            showAlert('deductAlert', '卡密已失效，请刷新页面重新输入', 'error');
-            document.cookie = `${COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            return;
+        // 确保有 Token
+        if (!globalToken) {
+            const cardKey = await initCardKey(true);
+            if (!cardKey) {
+                showAlert('deductAlert', '无法获取有效卡密，扣分操作被取消', 'error');
+                return;
+            }
         }
         
         const studentId = document.getElementById('studentId').value.trim();
@@ -664,18 +704,9 @@
             return;
         }
         
-        // 验证学号存在
         const allIds = await getAllStudentIds();
         if (!allIds.includes(studentId)) {
             showAlert('deductAlert', `学号 ${studentId} 不存在于成员列表中`, 'error');
-            return;
-        }
-        
-        let token;
-        try {
-            token = await getTokenFromCard(cardKey);
-        } catch(e) {
-            showAlert('deductAlert', `获取Token失败: ${e.message}`, 'error');
             return;
         }
         
@@ -683,7 +714,7 @@
         const attachmentPaths = [];
         try {
             for (let i=0; i<files.length; i++) {
-                const path = await uploadAttachment(studentId, timestamp, files[i], token);
+                const path = await uploadAttachment(studentId, timestamp, files[i]);
                 attachmentPaths.push(path);
             }
         } catch(e) {
@@ -702,7 +733,7 @@
         const recordFilename = `${timestamp.replace(/:/g, '-').replace(/\./g, '-')}.json`;
         const recordPath = `deductions/${studentId}/${recordFilename}`;
         try {
-            await createOrUpdateFile(recordPath, recordContent, token, `扣分记录 ${studentId} ${points}分`);
+            await createOrUpdateFile(recordPath, recordContent, `扣分记录 ${studentId} ${points}分`);
         } catch(e) {
             showAlert('deductAlert', `创建扣分记录失败: ${e.message}`, 'error');
             return;
@@ -713,14 +744,12 @@
         let newScore = currentScore - points;
         const scoreContent = JSON.stringify({ score: newScore }, null, 2);
         try {
-            await createOrUpdateFile(scorePath, scoreContent, token, `更新 ${studentId} 分数: ${currentScore} -> ${newScore}`);
+            await createOrUpdateFile(scorePath, scoreContent, `更新 ${studentId} 分数: ${currentScore} -> ${newScore}`);
             showAlert('deductAlert', `扣分成功！学号 ${studentId} 扣 ${points} 分，当前总分 ${newScore}`, 'success');
             document.getElementById('points').value = '';
             document.getElementById('reason').value = '';
             document.getElementById('attachments').value = '';
-            // 刷新所有数据
             await refreshAllData();
-            // 同时刷新个人查询区域（如果当前查询的学号相同，可清空）
             document.getElementById('personalResult').innerHTML = '';
         } catch(e) {
             showAlert('deductAlert', `更新分数文件失败: ${e.message}，但扣分记录已创建`, 'error');
@@ -739,9 +768,9 @@
         renderUserList();
     };
     
-    // 页面初始化：卡密 + 数据加载
+    // 页面初始化：先尝试从 Cookie 加载卡密并设置 Token，然后加载数据
     window.onload = async () => {
-        await initCardKey();  // 弹出输入框或验证已有
+        await initCardKey();   // 如果有有效 Cookie 则设置 globalToken，否则弹出输入框
         await refreshAllData();
     };
 </script>
