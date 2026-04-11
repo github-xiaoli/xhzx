@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能扣分系统 - 徐汇中学器材管理组</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background-color: #f5f9ff;
+            color: #333;
+            min-height: 100vh;
+            background-image: radial-gradient(#e1ecff 2px, transparent 2px), radial-gradient(#d4e3ff 2px, transparent 2px);
+            background-size: 80px 80px;
+            background-position: 0 0, 40px 40px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 25px 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #d4e3ff;
+            flex-wrap: wrap;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        .logo {
+            width: 70px;
+            height: 70px;
+            margin-right: 20px;
+        }
+        .title-container h1 {
+            color: #1e3c72;
+            font-size: 2rem;
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: #2a5298;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-left: 15px;
+            transition: 0.3s;
+        }
+        .nav-btn:hover {
+            background: #1e3c72;
+        }
+        .content-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        .card-title {
+            font-size: 1.8rem;
+            color: #1e3c72;
+            margin-bottom: 20px;
+            border-left: 5px solid #2a5298;
+            padding-left: 15px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1e3c72;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        button {
+            background: #2a5298;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #1e3c72;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #f0f4fc;
+            color: #1e3c72;
+            cursor: pointer;
+        }
+        th:hover {
+            background: #e1ecff;
+        }
+        .pagination {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            padding: 8px 16px;
+            background: #e1ecff;
+            color: #1e3c72;
+            border: none;
+            cursor: pointer;
+        }
+        .pagination button.active {
+            background: #2a5298;
+            color: white;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            flex: 1;
+        }
+        hr {
+            margin: 20px 0;
+        }
+        .sort-controls {
+            margin-bottom: 10px;
+            text-align: right;
+        }
+        .sort-controls button {
+            padding: 5px 10px;
+            font-size: 0.9rem;
+            background: #e1ecff;
+            color: #1e3c72;
+            margin-left: 5px;
+        }
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header-right {
+                margin-top: 15px;
+            }
+            .nav-btn {
+                margin-left: 0;
+                margin-right: 15px;
+            }
+            table {
+                font-size: 0.8rem;
+            }
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div class="header-left">
+            <img src="../image/logo.svg" alt="logo" class="logo">
+            <div class="title-container">
+                <h1>智能扣分系统</h1>
+            </div>
+        </div>
+        <div class="header-right">
+            <a href="../index.html" class="nav-btn"><i class="fas fa-home"></i> 首页</a>
+            <a href="home.html" class="nav-btn"><i class="fas fa-users"></i> 成员查询</a>
+        </div>
+    </header>
+
+    <!-- 扣分表单（卡密自动从Cookie读取） -->
+    <div class="content-card">
+        <h2 class="card-title"><i class="fas fa-minus-circle"></i> 扣分操作</h2>
+        <div id="deductAlert" class="alert"></div>
+        <form id="deductForm">
+            <div class="form-group">
+                <label>学号 *</label>
+                <input type="text" id="studentId" required placeholder="例如：20231326">
+            </div>
+            <div class="form-group">
+                <label>扣分分值（正数） *</label>
+                <input type="number" id="points" step="1" required placeholder="输入扣分数，例如：2">
+            </div>
+            <div class="form-group">
+                <label>扣分原因 *</label>
+                <textarea id="reason" rows="3" required placeholder="详细原因"></textarea>
+            </div>
+            <div class="form-group">
+                <label>附件（可选，可多选）</label>
+                <input type="file" id="attachments" multiple>
+                <small>支持任意类型文件，每个文件将独立上传到仓库</small>
+            </div>
+            <button type="submit"><i class="fas fa-save"></i> 提交扣分</button>
+        </form>
+    </div>
+
+    <!-- 个人查询 -->
+    <div class="content-card">
+        <h2 class="card-title"><i class="fas fa-user-check"></i> 个人分数与记录查询</h2>
+        <div class="search-box">
+            <input type="text" id="queryStudentId" placeholder="输入学号查询">
+            <button id="queryBtn"><i class="fas fa-search"></i> 查询</button>
+        </div>
+        <div id="personalResult"></div>
+    </div>
+
+    <!-- 用户列表（所有学生当前分数） -->
+    <div class="content-card">
+        <h2 class="card-title"><i class="fas fa-users"></i> 用户列表与当前分数</h2>
+        <div class="sort-controls">
+            <span>排序：</span>
+            <button id="sortByScoreBtn">按分数降序</button>
+            <button id="sortByIdBtn">按学号升序</button>
+        </div>
+        <div id="userListResult"></div>
+        <div id="userListPagination" class="pagination"></div>
+    </div>
+
+    <!-- 全局扣分记录列表 -->
+    <div class="content-card">
+        <h2 class="card-title"><i class="fas fa-list-alt"></i> 所有扣分记录</h2>
+        <div id="allRecordsResult"></div>
+        <div id="allRecordsPagination" class="pagination"></div>
+    </div>
+</div>
+
+<script>
+    // ==================== 配置 ====================
+    const REPO_OWNER = "github-xiaoli";
+    const REPO_NAME = "xhzx";
+    const BRANCH = "main";
+    const GITHUB_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents`;
+    const COOKIE_NAME = "card_key";
+    const COOKIE_EXPIRE_DAYS = 30;
+
+    // Cookie 操作
+    function setCookie(name, value, days) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+    }
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? match[2] : null;
+    }
+
+    // 从卡密获取 Token
+    async function getTokenFromCard(cardKey) {
+        const url = `${GITHUB_API}/key/${cardKey}?ref=${BRANCH}`;
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!response.ok) throw new Error(`卡密无效或不存在: ${cardKey}`);
+        const data = await response.json();
+        const token = atob(data.content.replace(/\n/g, ''));
+        return token.trim();
+    }
+
+    // 验证卡密是否有效
+    async function verifyCardKey(cardKey) {
+        try {
+            await getTokenFromCard(cardKey);
+            return true;
+        } catch(e) {
+            return false;
+        }
+    }
+
+    // 初始化卡密（首次访问）
+    async function initCardKey() {
+        let cardKey = getCookie(COOKIE_NAME);
+        if (cardKey) {
+            // 验证是否仍然有效
+            const valid = await verifyCardKey(cardKey);
+            if (valid) return cardKey;
+            else {
+                // 无效则清除并重新要求输入
+                document.cookie = `${COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+            }
+        }
+        // 弹出输入框
+        let newKey = null;
+        while (!newKey) {
+            newKey = prompt("请输入卡密（API密钥）以进行扣分操作：");
+            if (newKey === null) {
+                alert("必须输入卡密才能使用扣分功能，但查询功能不受影响。");
+                return null;
+            }
+            const valid = await verifyCardKey(newKey);
+            if (valid) {
+                setCookie(COOKIE_NAME, newKey, COOKIE_EXPIRE_DAYS);
+                return newKey;
+            } else {
+                alert("卡密无效，请重新输入。");
+                newKey = null;
+            }
+        }
+        return null;
+    }
+
+    // 通用 GitHub API 请求（带 token）
+    async function githubRequest(method, url, token, body = null) {
+        const options = {
+            method,
+            headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            }
+        };
+        if (body) options.body = JSON.stringify(body);
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`GitHub API 错误 ${response.status}: ${err}`);
+        }
+        if (method === 'DELETE') return null;
+        return await response.json();
+    }
+
+    // 获取文件内容（不需要 token，公开仓库）
+    async function getFileContent(path) {
+        const url = `${GITHUB_API}/${path}?ref=${BRANCH}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            if (res.status === 404) return null;
+            throw new Error(`读取文件失败: ${path}`);
+        }
+        const data = await res.json();
+        return data;
+    }
+
+    // 创建或更新文件（需要 token）
+    async function createOrUpdateFile(path, content, token, commitMsg) {
+        let sha = null;
+        try {
+            const existing = await getFileContent(path);
+            if (existing && existing.sha) sha = existing.sha;
+        } catch(e) { /* 文件不存在 */ }
+        const url = `${GITHUB_API}/${path}`;
+        const body = {
+            message: commitMsg,
+            content: btoa(unescape(encodeURIComponent(content))),
+            branch: BRANCH
+        };
+        if (sha) body.sha = sha;
+        return await githubRequest('PUT', url, token, body);
+    }
+
+    // 上传附件
+    async function uploadAttachment(studentId, timestamp, file, token) {
+        const safeName = `${timestamp.replace(/:/g, '-').replace(/\./g, '-')}_${file.name}`;
+        const path = `deductions/${studentId}/attachments/${safeName}`;
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64 = e.target.result.split(',')[1];
+                const url = `${GITHUB_API}/${path}`;
+                const body = {
+                    message: `上传附件 ${safeName}`,
+                    content: base64,
+                    branch: BRANCH
+                };
+                try {
+                    await githubRequest('PUT', url, token, body);
+                    resolve(path);
+                } catch(err) {
+                    reject(err);
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // 获取所有学生学号
+    async function getAllStudentIds() {
+        const url = `${GITHUB_API}/member/member_info?ref=${BRANCH}`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.filter(item => item.type === 'dir').map(dir => dir.name);
+    }
+
+    // 获取学生当前分数
+    async function getStudentScore(studentId) {
+        const path = `scores/${studentId}.json`;
+        const file = await getFileContent(path);
+        if (!file) return 0;
+        try {
+            const content = JSON.parse(atob(file.content));
+            return content.score || 0;
+        } catch(e) {
+            return 0;
+        }
+    }
+
+    // 获取学生的所有扣分记录文件列表
+    async function getStudentDeductionFiles(studentId) {
+        const dirPath = `deductions/${studentId}`;
+        const url = `${GITHUB_API}/${dirPath}?ref=${BRANCH}`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        if (!Array.isArray(data)) return [];
+        return data.filter(item => item.type === 'file' && item.name.endsWith('.json')).map(f => f.name);
+    }
+
+    // 读取单个扣分记录
+    async function getDeductionRecord(studentId, filename) {
+        const path = `deductions/${studentId}/${filename}`;
+        const file = await getFileContent(path);
+        if (!file) return null;
+        try {
+            return JSON.parse(atob(file.content));
+        } catch(e) {
+            return null;
+        }
+    }
+
+    // 获取所有学生的完整数据（用于用户列表）
+    async function getAllStudentsData() {
+        const studentIds = await getAllStudentIds();
+        const results = [];
+        for (const id of studentIds) {
+            const score = await getStudentScore(id);
+            results.push({ studentId: id, currentScore: score });
+        }
+        return results;
+    }
+
+    // 获取所有扣分记录（全局）
+    async function getAllDeductionRecords() {
+        const studentIds = await getAllStudentIds();
+        const allRecords = [];
+        for (const id of studentIds) {
+            const files = await getStudentDeductionFiles(id);
+            for (const fname of files) {
+                const rec = await getDeductionRecord(id, fname);
+                if (rec) {
+                    allRecords.push({
+                        studentId: id,
+                        ...rec
+                    });
+                }
+            }
+        }
+        // 按时间倒序
+        allRecords.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return allRecords;
+    }
+
+    // ========== 用户列表渲染（分页、排序） ==========
+    let allUsersData = [];
+    let currentUserPage = 1;
+    const userPageSize = 10;
+    let currentUserSort = "score_desc"; // score_desc 或 id_asc
+
+    function renderUserList() {
+        let sorted = [...allUsersData];
+        if (currentUserSort === "score_desc") {
+            sorted.sort((a,b) => b.currentScore - a.currentScore);
+        } else {
+            sorted.sort((a,b) => a.studentId.localeCompare(b.studentId));
+        }
+        const start = (currentUserPage-1)*userPageSize;
+        const end = start + userPageSize;
+        const pageData = sorted.slice(start, end);
+        let html = `<table><thead><tr><th>学号</th><th>当前总分</th></tr></thead><tbody>`;
+        pageData.forEach(item => {
+            html += `<tr><td>${item.studentId}</td><td>${item.currentScore}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('userListResult').innerHTML = html;
+        
+        const totalPages = Math.ceil(allUsersData.length / userPageSize);
+        let paginationHtml = '';
+        for (let i=1; i<=totalPages; i++) {
+            paginationHtml += `<button class="${i===currentUserPage?'active':''}" onclick="goToUserPage(${i})">${i}</button>`;
+        }
+        document.getElementById('userListPagination').innerHTML = paginationHtml;
+    }
+
+    window.goToUserPage = function(page) {
+        currentUserPage = page;
+        renderUserList();
+    };
+
+    // ========== 全局扣分记录渲染（分页） ==========
+    let allRecordsData = [];
+    let currentRecordPage = 1;
+    const recordPageSize = 10;
+
+    function renderAllRecords() {
+        const start = (currentRecordPage-1)*recordPageSize;
+        const end = start + recordPageSize;
+        const pageRecords = allRecordsData.slice(start, end);
+        if (pageRecords.length === 0) {
+            document.getElementById('allRecordsResult').innerHTML = '<p>暂无扣分记录。</p>';
+            document.getElementById('allRecordsPagination').innerHTML = '';
+            return;
+        }
+        let html = `<table><thead><tr><th>学号</th><th>扣分分值</th><th>原因</th><th>时间</th><th>附件</th></tr></thead><tbody>`;
+        pageRecords.forEach(rec => {
+            let attachHtml = '';
+            if (rec.attachments && rec.attachments.length) {
+                attachHtml = rec.attachments.map(p => `<a href="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${p}" target="_blank">📎 ${p.split('/').pop()}</a>`).join('<br>');
+            } else {
+                attachHtml = '无';
+            }
+            html += `<tr>
+                        <td>${rec.studentId}</td>
+                        <td style="color:red;">${rec.points}</td>
+                        <td>${rec.reason}</td>
+                        <td>${new Date(rec.timestamp).toLocaleString()}</td>
+                        <td>${attachHtml}</td>
+                     </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('allRecordsResult').innerHTML = html;
+        
+        const totalPages = Math.ceil(allRecordsData.length / recordPageSize);
+        let paginationHtml = '';
+        for (let i=1; i<=totalPages; i++) {
+            paginationHtml += `<button class="${i===currentRecordPage?'active':''}" onclick="goToRecordPage(${i})">${i}</button>`;
+        }
+        document.getElementById('allRecordsPagination').innerHTML = paginationHtml;
+    }
+
+    window.goToRecordPage = function(page) {
+        currentRecordPage = page;
+        renderAllRecords();
+    };
+
+    // 刷新所有数据（用户列表、全局记录）
+    async function refreshAllData() {
+        // 用户列表
+        allUsersData = await getAllStudentsData();
+        currentUserPage = 1;
+        renderUserList();
+        // 全局扣分记录
+        allRecordsData = await getAllDeductionRecords();
+        currentRecordPage = 1;
+        renderAllRecords();
+    }
+
+    // 个人查询
+    document.getElementById('queryBtn').onclick = async () => {
+        const studentId = document.getElementById('queryStudentId').value.trim();
+        if (!studentId) {
+            showAlert('personalResult', '请输入学号', 'error');
+            return;
+        }
+        try {
+            const score = await getStudentScore(studentId);
+            const files = await getStudentDeductionFiles(studentId);
+            const records = [];
+            for (const fname of files) {
+                const rec = await getDeductionRecord(studentId, fname);
+                if (rec) records.push(rec);
+            }
+            records.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            let html = `<h3>学号：${studentId}  当前总分：${score}</h3>`;
+            if (records.length === 0) {
+                html += `<p>暂无扣分记录。</p>`;
+            } else {
+                html += `<table><thead><tr><th>时间</th><th>扣分分值</th><th>原因</th><th>附件</th></tr></thead><tbody>`;
+                records.forEach(rec => {
+                    let attachHtml = '';
+                    if (rec.attachments && rec.attachments.length) {
+                        attachHtml = rec.attachments.map(p => `<a href="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${p}" target="_blank">${p.split('/').pop()}</a>`).join('<br>');
+                    } else {
+                        attachHtml = '无';
+                    }
+                    html += `<tr><td>${new Date(rec.timestamp).toLocaleString()}</td><td style="color:red;">${rec.points}</td><td>${rec.reason}</td><td>${attachHtml}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+            document.getElementById('personalResult').innerHTML = html;
+        } catch(e) {
+            showAlert('personalResult', `查询失败: ${e.message}`, 'error');
+        }
+    };
+
+    function showAlert(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        setTimeout(() => { container.innerHTML = ''; }, 5000);
+    }
+
+    // 扣分提交（从Cookie读取卡密）
+    document.getElementById('deductForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const alertDiv = document.getElementById('deductAlert');
+        alertDiv.style.display = 'none';
+        
+        // 获取卡密
+        let cardKey = getCookie(COOKIE_NAME);
+        if (!cardKey) {
+            showAlert('deductAlert', '未找到卡密，请刷新页面重新输入', 'error');
+            return;
+        }
+        // 验证卡密有效性
+        const valid = await verifyCardKey(cardKey);
+        if (!valid) {
+            showAlert('deductAlert', '卡密已失效，请刷新页面重新输入', 'error');
+            document.cookie = `${COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+            return;
+        }
+        
+        const studentId = document.getElementById('studentId').value.trim();
+        const pointsInput = document.getElementById('points').value;
+        const points = Math.abs(parseInt(pointsInput));
+        const reason = document.getElementById('reason').value.trim();
+        const files = document.getElementById('attachments').files;
+        
+        if (!studentId || !points || !reason) {
+            showAlert('deductAlert', '请填写所有必填项', 'error');
+            return;
+        }
+        
+        // 验证学号存在
+        const allIds = await getAllStudentIds();
+        if (!allIds.includes(studentId)) {
+            showAlert('deductAlert', `学号 ${studentId} 不存在于成员列表中`, 'error');
+            return;
+        }
+        
+        let token;
+        try {
+            token = await getTokenFromCard(cardKey);
+        } catch(e) {
+            showAlert('deductAlert', `获取Token失败: ${e.message}`, 'error');
+            return;
+        }
+        
+        const timestamp = new Date().toISOString();
+        const attachmentPaths = [];
+        try {
+            for (let i=0; i<files.length; i++) {
+                const path = await uploadAttachment(studentId, timestamp, files[i], token);
+                attachmentPaths.push(path);
+            }
+        } catch(e) {
+            showAlert('deductAlert', `附件上传失败: ${e.message}`, 'error');
+            return;
+        }
+        
+        const deductionRecord = {
+            studentId: studentId,
+            points: -points,
+            reason: reason,
+            timestamp: timestamp,
+            attachments: attachmentPaths
+        };
+        const recordContent = JSON.stringify(deductionRecord, null, 2);
+        const recordFilename = `${timestamp.replace(/:/g, '-').replace(/\./g, '-')}.json`;
+        const recordPath = `deductions/${studentId}/${recordFilename}`;
+        try {
+            await createOrUpdateFile(recordPath, recordContent, token, `扣分记录 ${studentId} ${points}分`);
+        } catch(e) {
+            showAlert('deductAlert', `创建扣分记录失败: ${e.message}`, 'error');
+            return;
+        }
+        
+        const scorePath = `scores/${studentId}.json`;
+        let currentScore = await getStudentScore(studentId);
+        let newScore = currentScore - points;
+        const scoreContent = JSON.stringify({ score: newScore }, null, 2);
+        try {
+            await createOrUpdateFile(scorePath, scoreContent, token, `更新 ${studentId} 分数: ${currentScore} -> ${newScore}`);
+            showAlert('deductAlert', `扣分成功！学号 ${studentId} 扣 ${points} 分，当前总分 ${newScore}`, 'success');
+            document.getElementById('points').value = '';
+            document.getElementById('reason').value = '';
+            document.getElementById('attachments').value = '';
+            // 刷新所有数据
+            await refreshAllData();
+            // 同时刷新个人查询区域（如果当前查询的学号相同，可清空）
+            document.getElementById('personalResult').innerHTML = '';
+        } catch(e) {
+            showAlert('deductAlert', `更新分数文件失败: ${e.message}，但扣分记录已创建`, 'error');
+        }
+    };
+    
+    // 排序按钮
+    document.getElementById('sortByScoreBtn').onclick = () => {
+        currentUserSort = "score_desc";
+        currentUserPage = 1;
+        renderUserList();
+    };
+    document.getElementById('sortByIdBtn').onclick = () => {
+        currentUserSort = "id_asc";
+        currentUserPage = 1;
+        renderUserList();
+    };
+    
+    // 页面初始化：卡密 + 数据加载
+    window.onload = async () => {
+        await initCardKey();  // 弹出输入框或验证已有
+        await refreshAllData();
+    };
+</script>
+</body>
+</html>
