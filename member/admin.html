@@ -24,8 +24,21 @@
             </div>
             <div id="query-result"></div>
         </section>
-        <p><a href="home.html">← 返回主页</a></p>
+        <p>
+            <a href="backend.html">← 返回后台主页</a> | 
+            <a href="home.html">前台主页</a>
+        </p>
     </div>
+
+    <!-- 附件预览模态框 -->
+    <div id="preview-modal" class="modal">
+        <div class="modal-content-wrapper">
+            <span id="modal-close" class="modal-close">&times;</span>
+            <div id="modal-content" class="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="../js/github.js"></script>
     <script src="../js/admin.js"></script>
 </body>

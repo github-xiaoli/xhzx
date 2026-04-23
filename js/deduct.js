@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const token = await getGitHubToken();
             const ts = generateTimestamp();
             const attachmentPaths = [];
-            const uploadedShas = [];   // { path, sha }
+            const uploadedShas = [];
 
             // 1. 上传附件
             if (files.length > 0) {
@@ -37,7 +37,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         uploadedShas.push({ path: filePath, sha: result.content.sha });
                     } catch (err) {
                         showMessage(`附件上传失败: ${err.message}，正在回滚...`, "error");
-                        // 回滚已上传的附件
                         for (const item of uploadedShas) {
                             await githubDelete(item.path, item.sha, token).catch(() => {});
                         }
@@ -53,18 +52,17 @@ document.addEventListener("DOMContentLoaded", () => {
             let scoreSha = null;
             const scoreData = await githubGet(scorePath);
             if (scoreData) {
-                const content = JSON.parse(atob(scoreData.content));
-                currentScore = content.score || 0;
+                const content = decodeBase64(scoreData.content);  // 使用统一解码
+                currentScore = JSON.parse(content).score || 0;
                 scoreSha = scoreData.sha;
             }
             const newScore = currentScore - points;
             const scoreContent = JSON.stringify({ score: newScore }, null, 2);
-            const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
+            const scoreB64 = encodeBase64(scoreContent);           // 使用统一编码
 
             try {
                 await githubPut(scorePath, scoreB64, `Update score for ${studentId}`, token, scoreSha);
             } catch (err) {
-                // 回滚附件
                 showMessage(`分数更新失败: ${err.message}，回滚附件...`, "error");
                 for (const item of uploadedShas) {
                     await githubDelete(item.path, item.sha, token).catch(() => {});
@@ -84,15 +82,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 operator: "web"
             };
             const penaltyPath = `penalties/penalty_${ts}_${studentId}.json`;
-            const penaltyB64 = btoa(unescape(encodeURIComponent(JSON.stringify(record, null, 2))));
+            const penaltyB64 = encodeBase64(JSON.stringify(record, null, 2));
 
             try {
                 await githubPut(penaltyPath, penaltyB64, `Create penalty for ${studentId}`, token);
             } catch (err) {
-                // 回滚分数与附件
                 showMessage(`扣分记录创建失败: ${err.message}，正在回滚...`, "error");
-                // 恢复原分数
-                const rollbackB64 = btoa(unescape(encodeURIComponent(JSON.stringify({ score: currentScore }))));
+                const rollbackB64 = encodeBase64(JSON.stringify({ score: currentScore }));
                 await githubPut(scorePath, rollbackB64, `Rollback score for ${studentId}`, token, scoreSha).catch(() => {});
                 for (const item of uploadedShas) {
                     await githubDelete(item.path, item.sha, token).catch(() => {});

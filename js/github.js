@@ -1,7 +1,7 @@
 const GITHUB_OWNER = "github-xiaoli";
 const GITHUB_REPO = "xhzx";
 const API_BASE = "https://api.github.com";
-const ENCRYPTION_KEY = "aes256keyforgithub2026secret!!12"; // 必须与 Python 脚本完全一致
+const ENCRYPTION_KEY = "aes256keyforgithub2026secret!!12";
 
 // --- Cookie 工具 ---
 function getCookie(name) {
@@ -19,9 +19,16 @@ function deleteCookie(name) {
     setCookie(name, "", -1);
 }
 
-// --- 获取并解密 Token，并缓存卡密 ---
+// --- Base64 编解码（完美支持中文）---
+function encodeBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+}
+function decodeBase64(b64) {
+    return decodeURIComponent(escape(atob(b64)));
+}
+
+// --- 获取并解密 Token ---
 async function fetchEncryptedKey(card) {
-    // 使用相对路径，确保与网站同源，避免跨域和混合内容错误
     const resp = await fetch(`/key/${card}`);
     if (!resp.ok) throw new Error("卡密无效或网络错误");
     return await resp.text();
@@ -60,7 +67,7 @@ function getCachedCard() {
     return getCookie("card_key") || "";
 }
 
-// --- GitHub API 基础封装 ---
+// --- GitHub API ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const resp = await fetch(url);
