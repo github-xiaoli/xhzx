@@ -59,9 +59,8 @@ function getCachedCard() {
     return getCookie("card_key") || "";
 }
 
-// --- 正确解码 GitHub 返回的 Base64 内容（处理中文） ---
+// --- 正确解码 Base64 内容（处理中文） ---
 function decodeBase64Content(base64content) {
-    // 使用 TextDecoder 解码 UTF-8
     const binary = atob(base64content);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -70,17 +69,50 @@ function decodeBase64Content(base64content) {
     return new TextDecoder('utf-8').decode(bytes);
 }
 
-// --- GitHub API 基础封装 ---
+// --- 核心修改：githubGet 自动携带 token（如果存在）--- 
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
-    const resp = await fetch(url);
+    const headers = {};
+    // 如果 Cookie 中有 token，自动附加认证头
+    const token = getCookie("github_token");
+    if (token) {
+        headers["Authorization"] = `token ${token}`;
+    }
+    const resp = await fetch(url, { headers });
     if (!resp.ok) {
+        if (resp.status === 403 || resp.status === 429) {
+            // 速率限制或权限错误
+            const errData = await resp.json().catch(() => ({}));
+            if (errData.message && errData.message.includes("rate limit")) {
+                // 未认证且超限时，提示输入卡密
+                if (!token) {
+                    const card = prompt("API 请求次数超限，请输入卡密以提升速率限制：");
+                    if (card) {
+                        const encrypted = await fetchEncryptedKey(card);
+                        const decrypted = decryptToken(encrypted);
+                        if (decrypted) {
+                            setCookie("github_token", decrypted, 7);
+                            setCookie("card_key", card, 7);
+                            // 重试带 token 的请求
+                            headers["Authorization"] = `token ${decrypted}`;
+                            const retryResp = await fetch(url, { headers });
+                            if (retryResp.ok) return await retryResp.json();
+                            else throw new Error("重试失败，请稍后再试");
+                        }
+                    }
+                }
+                throw new Error("API 速率限制已耗尽，请稍后刷新页面或重新输入卡密。");
+            } else {
+                throw new Error(`请求失败 (${resp.status}): ${errData.message || '无权限'}`);
+            }
+        }
         if (resp.status === 404) return null;
         throw new Error(`读取 ${path} 失败 (${resp.status})`);
     }
     return await resp.json();
 }
 
+// --- 其他 GitHub API 封装（保持不变） ---
 async function githubPut(path, contentBase64, message, token, sha = null) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const body = { message, content: contentBase64, branch: "main" };
