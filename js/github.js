@@ -21,7 +21,8 @@ function deleteCookie(name) {
 
 // --- 获取并解密 Token，并缓存卡密 ---
 async function fetchEncryptedKey(card) {
-    const resp = await fetch(`http://balls.xhzx.qzz.io/key/${card}`);
+    // 使用相对路径，确保与网站同源，避免跨域和混合内容错误
+    const resp = await fetch(`/key/${card}`);
     if (!resp.ok) throw new Error("卡密无效或网络错误");
     return await resp.text();
 }
@@ -37,34 +38,29 @@ function decryptToken(encrypted) {
 }
 
 async function getGitHubToken() {
-    // 优先从 Cookie 中读取
     let token = getCookie("github_token");
     if (token) return token;
 
-    // 无 Cookie，弹出卡密输入框
     const card = prompt("请输入卡密以获取操作权限：");
     if (!card) throw new Error("未提供卡密");
     const encrypted = await fetchEncryptedKey(card);
     token = decryptToken(encrypted);
     if (!token) throw new Error("解密失败，请检查卡密是否正确");
-    setCookie("github_token", token, 7);   // 7 天有效
-    setCookie("card_key", card, 7);       // 同时缓存卡密
+    setCookie("github_token", token, 7);
+    setCookie("card_key", card, 7);
     return token;
 }
 
-// 清除所有认证 Cookie
 function clearAuthCookies() {
     deleteCookie("github_token");
     deleteCookie("card_key");
-    console.log("认证信息已清除");
 }
 
-// 从 Cookie 获取缓存的卡密（可能不存在）
 function getCachedCard() {
     return getCookie("card_key") || "";
 }
 
-// --- GitHub API 基础封装（保持不变） ---
+// --- GitHub API 基础封装 ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const resp = await fetch(url);
