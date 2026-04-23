@@ -1,7 +1,7 @@
 const GITHUB_OWNER = "github-xiaoli";
 const GITHUB_REPO = "xhzx";
 const API_BASE = "https://api.github.com";
-const ENCRYPTION_KEY = "aes256keyforgithub2026secret!!12";  // 必须与 Python 脚本完全一致
+const ENCRYPTION_KEY = "aes256keyforgithub2026secret!!12"; // 必须与 Python 脚本完全一致
 
 // --- Cookie 工具 ---
 function getCookie(name) {
@@ -15,8 +15,11 @@ function setCookie(name, value, days) {
     d.setTime(d.getTime() + days * 86400000);
     document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax`;
 }
+function deleteCookie(name) {
+    setCookie(name, "", -1);
+}
 
-// --- 获取并解密 Token ---
+// --- 获取并解密 Token，并缓存卡密 ---
 async function fetchEncryptedKey(card) {
     const resp = await fetch(`http://balls.xhzx.qzz.io/key/${card}`);
     if (!resp.ok) throw new Error("卡密无效或网络错误");
@@ -45,10 +48,23 @@ async function getGitHubToken() {
     token = decryptToken(encrypted);
     if (!token) throw new Error("解密失败，请检查卡密是否正确");
     setCookie("github_token", token, 7);   // 7 天有效
+    setCookie("card_key", card, 7);       // 同时缓存卡密
     return token;
 }
 
-// --- GitHub API 基础封装 ---
+// 清除所有认证 Cookie
+function clearAuthCookies() {
+    deleteCookie("github_token");
+    deleteCookie("card_key");
+    console.log("认证信息已清除");
+}
+
+// 从 Cookie 获取缓存的卡密（可能不存在）
+function getCachedCard() {
+    return getCookie("card_key") || "";
+}
+
+// --- GitHub API 基础封装（保持不变） ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const resp = await fetch(url);
@@ -92,21 +108,18 @@ async function githubDelete(path, sha, token) {
     return await resp.json();
 }
 
-// 列出目录下的子目录
 async function listDirectories(path) {
     const data = await githubGet(path);
     if (!data || !Array.isArray(data)) return [];
     return data.filter(item => item.type === "dir").map(item => item.name);
 }
 
-// 列出目录下的文件名
 async function listFiles(path) {
     const data = await githubGet(path);
     if (!data || !Array.isArray(data)) return [];
     return data.filter(item => item.type === "file").map(item => item.name);
 }
 
-// 生成格式：YYYYMMDDHHmmssSSS (UTC)
 function generateTimestamp() {
     const now = new Date();
     return (
@@ -120,7 +133,6 @@ function generateTimestamp() {
     );
 }
 
-// 文件转 Base64（不含 data URL 前缀）
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();

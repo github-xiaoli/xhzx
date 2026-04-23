@@ -1,10 +1,9 @@
 import os
 import base64
-import argparse
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
-# 32 字节密钥，必须与前端 ENCRYPTION_KEY 完全一致
+# 32 字节密钥，必须与前端 js/github.js 中的 ENCRYPTION_KEY 完全一致
 KEY = b"aes256keyforgithub2026secret!!12"
 
 def encrypt_token(plain_token: str) -> str:
@@ -16,18 +15,26 @@ def encrypt_token(plain_token: str) -> str:
     return f"{iv_b64}:{ct_b64}"
 
 def main():
-    parser = argparse.ArgumentParser(description="加密 GitHub API 密钥并写入 key/卡密 文件")
-    parser.add_argument("--card", required=True, help="卡密（即文件名）")
-    parser.add_argument("--token", required=True, help="明文 GitHub API 密钥")
-    args = parser.parse_args()
+    print("=== GitHub API 密钥加密工具 ===")
+    card = input("请输入卡密（文件名）: ").strip()
+    if not card:
+        print("❌ 卡密不能为空")
+        return
 
-    encrypted = encrypt_token(args.token)
+    token = input("请输入明文 GitHub API 密钥: ").strip()
+    if not token:
+        print("❌ 密钥不能为空")
+        return
+
+    encrypted = encrypt_token(token)
     key_dir = "key"
     os.makedirs(key_dir, exist_ok=True)
-    filepath = os.path.join(key_dir, args.card)
+    filepath = os.path.join(key_dir, card)
+
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(encrypted)
-    print(f"✔ 密文已写入 {filepath}")
+
+    print(f"✔ 密文已成功写入 {filepath}")
 
 if __name__ == "__main__":
     main()
