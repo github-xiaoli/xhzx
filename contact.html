@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欢迎联系</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-image: url('/../image/backstage.png');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* 添加半透明背景层，提高文字可读性 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.85);
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* 返回按钮样式 */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .back-btn:hover {
+            background-color: #1a252f;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .back-btn i {
+            font-size: 0.9em;
+        }
+        
+        /* 主标题样式 */
+        .page-title {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #2c3e50;
+            font-size: 2.5rem;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        .page-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            border-radius: 2px;
+        }
+        
+        /* 联系方式板块容器 */
+        .contact-sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        /* 每个板块的样式 */
+        .contact-section {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .contact-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .section-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.4rem;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+        
+        /* 地址板块样式 */
+        .address-text {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .map-container {
+            flex-grow: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: auto;
+            border: 1px solid #eee;
+        }
+        
+        .map-container iframe {
+            width: 100%;
+            height: 250px;
+            border: none;
+        }
+        
+        /* 微信板块样式 */
+        .wechat-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .wechat-id {
+            background-color: #f8f9fa;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            color: #2c3e50;
+            font-weight: 500;
+            border: 1px dashed #3498db;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .qrcode-container {
+            width: 180px;
+            height: 180px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qrcode-container img {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .copy-btn {
+            background: linear-gradient(to right, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            width: 100%;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        
+        .copy-btn:hover {
+            background: linear-gradient(to right, #2980b9, #1f639b);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .copy-btn.copied {
+            background: linear-gradient(to right, #2ecc71, #27ae60);
+        }
+        
+        /* 邮箱板块样式 */
+        .email-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            margin-top: 10px;
+        }
+        
+        .email-address {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            background-color: #f8f9fa;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px dashed #e74c3c;
+            text-align: center;
+            width: 100%;
+            word-break: break-word;
+        }
+        
+        .email-btn {
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .email-btn:hover {
+            background: linear-gradient(to right, #c0392b, #a93226);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .contact-sections {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .contact-section {
+                padding: 20px;
+            }
+            
+            .qrcode-container {
+                width: 150px;
+                height: 150px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .page-title {
+                font-size: 1.8rem;
+            }
+            
+            .section-title {
+                font-size: 1.3rem;
+            }
+            
+            .email-address, .wechat-id {
+                font-size: 1rem;
+            }
+            
+            .back-btn {
+                padding: 8px 15px;
+            }
+        }
+        
+        /* 底部信息 */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        /* 提示信息样式 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #2ecc71;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transform: translateX(150%);
+            transition: transform 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 返回按钮 -->
+        <a href="index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            返回首页
+        </a>
+        
+        <!-- 页面标题 -->
+        <h1 class="page-title">联系我们</h1>
+        
+        <!-- 联系方式板块 -->
+        <div class="contact-sections">
+            <!-- 地址板块 -->
+            <div class="contact-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <h2 class="section-title">线下联系</h2>
+                </div>
+                
+                <p class="address-text">
+                    上海市徐汇区华发路68号体育办公室
+                </p>
+                
+                <div class="map-container">
+                    <!-- 修改为图片，点击跳转到地图链接 -->
+                    <a href="https://ditu.amap.com/place/B0FFJ1YEVC" target="_blank" class="address-link">
+                        <img src="/../image/door.png"  width="325" height="325" class="map-image">
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 微信板块 -->
+            <div class="contact-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fab fa-weixin"></i>
+                    </div>
+                    <h2 class="section-title">微信联系</h2>
+                </div>
+                
+                <div class="wechat-info">
+                    <div class="wechat-id">微信号：Bobcao918</div>
+                    
+                    <div class="head_image">
+                        <img src="/image/head_cao.jpg" width="170" height="170">
+                    </div>
+                    
+                </div>
+                
+                <button class="copy-btn" id="copyWechatBtn">
+                    <i class="far fa-copy"></i>
+                    复制微信号
+                </button>
+            </div>
+            
+            <!-- 邮箱板块 -->
+            <div class="contact-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h2 class="section-title">邮箱联系</h2>
+                </div>
+                
+                <div class="email-info">
+                    <div class="email-address">liyuchen120416@163.com</div>
+                    
+                    <div class="head_image">
+                        <img src="/image/head_li.jpg" width="150" height="150">
+                    </div>
+                    
+                    <p style="color: #666; text-align: center; font-size: 0.95rem;">
+                        点击下方按钮，直接使用系统邮箱发送邮件
+                    </p>
+                </div>
+                
+                <button class="email-btn" id="emailBtn">
+                    <i class="fas fa-paper-plane"></i>
+                    发送邮件
+                </button>
+            </div>
+        </div>
+        
+        <!-- 底部信息 -->
+        <div class="footer">
+            <p>© 2026 徐汇中学器材管理组 版权所有 </p>
+            <strong>本页面由AI生成</strong>
+        </div>
+    </div>
+    
+    <!-- 复制成功提示 -->
+    <div class="notification" id="notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="notificationText">微信号已复制到剪贴板</span>
+    </div>
+
+    <script>
+        // 复制微信号功能
+        document.getElementById('copyWechatBtn').addEventListener('click', function() {
+            const wechatId = 'Bobcao918';
+            
+            // 使用现代剪贴板API
+            navigator.clipboard.writeText(wechatId)
+                .then(() => {
+                    showNotification('微信号已复制到剪贴板');
+                    
+                    // 改变按钮状态
+                    const btn = document.getElementById('copyWechatBtn');
+                    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                    btn.classList.add('copied');
+                    
+                    // 3秒后恢复按钮状态
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="far fa-copy"></i> 复制微信号';
+                        btn.classList.remove('copied');
+                    }, 3000);
+                })
+                .catch(err => {
+                    // 降级方案：使用传统document.execCommand方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = wechatId;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    showNotification('微信号已复制到剪贴板');
+                });
+        });
+        
+        // 发送邮件功能
+        document.getElementById('emailBtn').addEventListener('click', function() {
+            const email = 'liyuchen120416@163.com';
+            const subject = '网站联系';
+            const body = '邮件内容';
+            
+            // 使用mailto链接唤起系统邮箱
+            window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        });
+        
+        // 显示通知函数
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            
+            notificationText.textContent = message;
+            notification.classList.add('show');
+            
+            // 3秒后隐藏通知
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 添加一些交互效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 为每个板块添加延迟显示效果
+            const sections = document.querySelectorAll('.contact-section');
+            sections.forEach((section, index) => {
+                section.style.opacity = '0';
+                section.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    section.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    section.style.opacity = '1';
+                    section.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+            
+            // 二维码悬停效果
+            const qrcodeContainer = document.querySelector('.qrcode-container');
+            if (qrcodeContainer) {
+                qrcodeContainer.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                
+                qrcodeContainer.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
