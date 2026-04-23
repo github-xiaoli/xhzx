@@ -84,35 +84,39 @@ async function queryPenaltyRecords(sid) {
     return records;
 }
 
-// 渲染附件预览
+// 渲染附件预览（使用网站自身路径，解决中文文件名问题）
 function renderAttachments(attachments) {
     if (!attachments || attachments.length === 0) return "无";
     let html = "<div class='attach-list'>";
     attachments.forEach(path => {
-        const filename = path.split('/').pop();
+        // 分离路径和文件名，对文件名进行编码
+        const parts = path.split('/');
+        const filename = parts.pop();
+        const safeFilename = encodeURIComponent(filename);
+        const safePath = parts.join('/') + '/' + safeFilename;
+        const siteUrl = '/' + safePath;  // 直接使用网站根路径
+
         const ext = filename.split('.').pop().toLowerCase();
-        const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${path}`;
         if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) {
             html += `<div class="attach-item">
-                <a href="${rawUrl}" target="_blank"><img src="${rawUrl}" class="attach-thumb" loading="lazy" alt="${filename}"></a>
+                <a href="${siteUrl}" target="_blank"><img src="${siteUrl}" class="attach-thumb" loading="lazy" alt="${filename}"></a>
                 <span class="attach-name">${filename}</span>
-                <a href="${rawUrl}" target="_blank" class="preview-link">[原图]</a>
+                <a href="${siteUrl}" target="_blank" class="preview-link">[原图]</a>
             </div>`;
         } else if (ext === 'pdf') {
             html += `<div class="attach-item">
                 <span class="attach-name">${filename}</span>
-                <a href="${rawUrl}" target="_blank" class="preview-link">[打开PDF]</a>
-                <button class="preview-btn" data-url="${rawUrl}" data-type="pdf">预览</button>
+                <a href="${siteUrl}" target="_blank" class="preview-link">[打开PDF]</a>
+                <button class="preview-btn" data-url="${siteUrl}" data-type="pdf">预览</button>
             </div>`;
         } else {
             html += `<div class="attach-item">
                 <span class="attach-name">${filename}</span>
-                <a href="${rawUrl}" target="_blank" class="preview-link">[下载]</a>
+                <a href="${siteUrl}" target="_blank" class="preview-link">[下载]</a>
             </div>`;
         }
     });
     html += "</div>";
-    // 绑定预览按钮事件（统一委托给 document）
     return html;
 }
 
@@ -132,7 +136,9 @@ function showPreview(url, type) {
         <div class="preview-backdrop"></div>
         <div class="preview-content">
             <span class="preview-close">&times;</span>
-            ${type === 'pdf' ? `<iframe src="${url}" width="100%" height="600px"></iframe>` : `<img src="${url}" style="max-width:100%; max-height:80vh;">`}
+            ${type === 'pdf' 
+                ? `<iframe src="${url}" width="100%" height="600px"></iframe>` 
+                : `<img src="${url}" style="max-width:100%; max-height:80vh;">`}
         </div>`;
     document.body.appendChild(modal);
 
@@ -143,7 +149,7 @@ function showPreview(url, type) {
     }, { once: true });
 }
 
-// 删除扣分记录
+// 删除扣分记录（保持不变）
 async function onDeleteRecord(e) {
     const btn = e.currentTarget;
     const id = btn.dataset.id;
@@ -159,10 +165,8 @@ async function onDeleteRecord(e) {
     try {
         const token = await getGitHubToken();
         const penaltyPath = `penalties/penalty_${id}.json`;
-        // 获取扣分记录 sha
         const fileData = await githubGet(penaltyPath);
         if (!fileData) throw new Error("记录文件不存在");
-        // 删除记录文件
         await githubDelete(penaltyPath, fileData.sha, token);
 
         // 恢复分数
@@ -180,7 +184,7 @@ async function onDeleteRecord(e) {
         const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
         await githubPut(scorePath, scoreB64, `Recover score for ${sid} after delete penalty ${id}`, token, scoreSha);
 
-        // 删除附件文件夹（可选，尝试删除，失败不影响）
+        // 尝试删除附件文件夹（可选）
         try {
             const attachDir = `attachments/${id}`;
             const attachFiles = await listFiles(attachDir);
@@ -188,13 +192,10 @@ async function onDeleteRecord(e) {
                 const fData = await githubGet(`${attachDir}/${f}`);
                 if (fData) await githubDelete(`${attachDir}/${f}`, fData.sha, token).catch(() => {});
             }
-            // GitHub API 无法删除空目录，忽略
-        } catch (_) { /* 附件删除失败不影响 */ }
+        } catch (_) { /* 忽略 */ }
 
-        // 更新界面
         document.getElementById(`row-${id}`).remove();
         alert("删除成功，分数已恢复。");
-        // 刷新分数列表
         loadScoreList();
     } catch (err) {
         alert("删除失败: " + err.message);
