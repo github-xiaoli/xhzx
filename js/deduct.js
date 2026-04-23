@@ -52,13 +52,13 @@ document.addEventListener("DOMContentLoaded", () => {
             let scoreSha = null;
             const scoreData = await githubGet(scorePath);
             if (scoreData) {
-                const content = decodeBase64(scoreData.content);  // 使用统一解码
-                currentScore = JSON.parse(content).score || 0;
+                const jsonStr = decodeBase64Content(scoreData.content);
+                currentScore = JSON.parse(jsonStr).score || 0;
                 scoreSha = scoreData.sha;
             }
             const newScore = currentScore - points;
             const scoreContent = JSON.stringify({ score: newScore }, null, 2);
-            const scoreB64 = encodeBase64(scoreContent);           // 使用统一编码
+            const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
 
             try {
                 await githubPut(scorePath, scoreB64, `Update score for ${studentId}`, token, scoreSha);
@@ -82,13 +82,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 operator: "web"
             };
             const penaltyPath = `penalties/penalty_${ts}_${studentId}.json`;
-            const penaltyB64 = encodeBase64(JSON.stringify(record, null, 2));
+            const penaltyB64 = btoa(unescape(encodeURIComponent(JSON.stringify(record, null, 2))));
 
             try {
                 await githubPut(penaltyPath, penaltyB64, `Create penalty for ${studentId}`, token);
             } catch (err) {
                 showMessage(`扣分记录创建失败: ${err.message}，正在回滚...`, "error");
-                const rollbackB64 = encodeBase64(JSON.stringify({ score: currentScore }));
+                const rollbackB64 = btoa(unescape(encodeURIComponent(JSON.stringify({ score: currentScore }))));
                 await githubPut(scorePath, rollbackB64, `Rollback score for ${studentId}`, token, scoreSha).catch(() => {});
                 for (const item of uploadedShas) {
                     await githubDelete(item.path, item.sha, token).catch(() => {});

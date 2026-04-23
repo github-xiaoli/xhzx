@@ -1,66 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const scoreTbody = document.getElementById("score-table-body");
-    const queryInput = document.getElementById("query-student-id");
-    const queryBtn = document.getElementById("query-btn");
-    const queryResult = document.getElementById("query-result");
-
     loadScoreList();
-
-    queryBtn.addEventListener("click", () => queryRecords());
-
-    // 预览模态框关闭按钮
-    const modal = document.getElementById("preview-modal");
-    const modalClose = document.getElementById("modal-close");
-    const modalContent = document.getElementById("modal-content");
-    modalClose.addEventListener("click", () => {
-        modal.style.display = "none";
-        modalContent.innerHTML = "";
-    });
-    window.addEventListener("click", (e) => {
-        if (e.target === modal) {
-            modal.style.display = "none";
-            modalContent.innerHTML = "";
-        }
-    });
-
-    // 文件类型判断（简单判断扩展名）
-    function isImage(fileName) {
-        return /\.(png|jpg|jpeg|gif|webp|svg|bmp)$/i.test(fileName);
-    }
-    function isPdfOrText(fileName) {
-        return /\.(pdf|txt|md|log)$/i.test(fileName);
-    }
-
-    // 附件预览函数
-    window.previewAttachment = (url, fileName) => {
-        const modal = document.getElementById("preview-modal");
-        const content = document.getElementById("modal-content");
-        content.innerHTML = ""; // 清空
-        if (isImage(fileName)) {
-            const img = document.createElement("img");
-            img.src = url;
-            img.style.maxWidth = "100%";
-            img.style.maxHeight = "80vh";
-            content.appendChild(img);
-        } else if (isPdfOrText(fileName)) {
-            const iframe = document.createElement("iframe");
-            iframe.src = url;
-            iframe.style.width = "100%";
-            iframe.style.height = "80vh";
-            content.appendChild(iframe);
-        } else {
-            content.innerHTML = `
-                <p>无法直接预览此文件类型。</p>
-                <a href="${url}" target="_blank">在新窗口打开</a>
-            `;
-        }
-        modal.style.display = "block";
-    };
+    document.getElementById("query-btn").addEventListener("click", queryHandler);
 });
 
+// --- 成员分数列表 ---
 async function loadScoreList() {
     const tbody = document.getElementById("score-table-body");
-    tbody.innerHTML = "<tr><td colspan='2'>加载中...</td></tr>";
+    tbody.innerHTML = "<tr><td colspan='2'>加载中…</td></tr>";
     try {
         const dirs = await listDirectories("member/member_info");
         if (dirs.length === 0) {
@@ -70,13 +16,11 @@ async function loadScoreList() {
         const scores = [];
         for (const d of dirs) {
             let score = 0;
-            try {
-                const data = await githubGet(`member/member_info/${d}/score.json`);
-                if (data) {
-                    const content = decodeBase64(data.content);
-                    score = JSON.parse(content).score;
-                }
-            } catch (_) { /* 文件不存在则为 0 */ }
+            const data = await githubGet(`member/member_info/${d}/score.json`);
+            if (data) {
+                const jsonStr = decodeBase64Content(data.content);
+                score = JSON.parse(jsonStr).score;
+            }
             scores.push({ id: d, score });
         }
         scores.sort((a, b) => a.id.localeCompare(b.id));
@@ -86,30 +30,31 @@ async function loadScoreList() {
     }
 }
 
-async function queryRecords() {
+// --- 扣分记录查询与删除 ---
+async function queryHandler() {
     const sid = document.getElementById("query-student-id").value.trim();
     const resultDiv = document.getElementById("query-result");
-    if (!sid) return resultDiv.innerHTML = "<p>请输入学号</p>";
-    resultDiv.innerHTML = "<p>查询中...</p>";
+    if (!sid) {
+        resultDiv.innerHTML = "<p>请输入学号</p>";
+        return;
+    }
+    resultDiv.innerHTML = "<p>查询中…</p>";
     try {
-        const records = await fetchPenaltyRecords(sid);
+        const records = await queryPenaltyRecords(sid);
         if (records.length === 0) {
-            return resultDiv.innerHTML = "<p>未找到该学号的扣分记录。</p>";
+            resultDiv.innerHTML = "<p>未找到该学号的扣分记录。</p>";
+            return;
         }
-        let html = `<table>
+        let html = `<table id="penalty-table">
             <thead><tr><th>时间</th><th>分数</th><th>理由</th><th>附件</th><th>操作</th></tr></thead><tbody>`;
         for (const rec of records) {
-            const attachHtml = rec.attachments.map(a => {
-                const fileName = a.split('/').pop();
-                const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${a}`;
-                return `<a href="javascript:void(0)" onclick="previewAttachment('${rawUrl}','${fileName}')">${fileName}</a>`;
-            }).join(', ');
-            html += `<tr>
-                <td>${new Date(rec.timestamp).toLocaleString("zh-CN")}</td>
+            const attachCell = renderAttachments(rec.attachments);
+            html += `<tr id="row-${rec.id}">
+                <td>${new Date(rec.timestamp).toLocaleString()}</td>
                 <td>${rec.points}</td>
                 <td>${rec.reason}</td>
-                <td>${attachHtml || '无'}</td>
-                <td><button class="delete-btn" data-file="penalties/penalty_${rec.id}.json" data-student="${rec.student_id}" data-points="${rec.points}">🗑️ 删除</button></td>
+                <td>${attachCell}</td>
+                <td><button class="delete-btn" data-id="${rec.id}" data-sid="${rec.student_id}" data-points="${rec.points}">🗑 删除</button></td>
             </tr>`;
         }
         html += "</tbody></table>";
@@ -117,56 +62,144 @@ async function queryRecords() {
 
         // 绑定删除事件
         document.querySelectorAll(".delete-btn").forEach(btn => {
-            btn.addEventListener("click", async function() {
-                const filePath = this.dataset.file;
-                const studentId = this.dataset.student;
-                const points = parseInt(this.dataset.points, 10);
-                if (!confirm(`确定要删除该扣分记录吗？将返还 ${points} 分给 ${studentId}。`)) return;
-                try {
-                    const token = await getGitHubToken();
-                    // 1. 获取文件信息（需要 sha）
-                    const fileData = await githubGet(filePath);
-                    if (!fileData) throw new Error("记录文件不存在");
-                    // 2. 删除记录文件
-                    await githubDelete(filePath, fileData.sha, token);
-
-                    // 3. 恢复分数
-                    const scorePath = `member/member_info/${studentId}/score.json`;
-                    const scoreData = await githubGet(scorePath);
-                    let currentScore = 0;
-                    let scoreSha = null;
-                    if (scoreData) {
-                        currentScore = JSON.parse(decodeBase64(scoreData.content)).score || 0;
-                        scoreSha = scoreData.sha;
-                    }
-                    const newScore = currentScore + points;
-                    const scoreB64 = encodeBase64(JSON.stringify({ score: newScore }, null, 2));
-                    await githubPut(scorePath, scoreB64, `Recover score after deleting penalty`, token, scoreSha);
-                    alert("删除成功，分数已恢复！");
-                    // 刷新查询结果
-                    queryRecords();
-                    loadScoreList(); // 同时更新成员列表
-                } catch (err) {
-                    alert("删除失败: " + err.message);
-                }
-            });
+            btn.addEventListener("click", onDeleteRecord);
         });
     } catch (err) {
         resultDiv.innerHTML = `<p class="error">查询失败: ${err.message}</p>`;
     }
 }
 
-async function fetchPenaltyRecords(sid) {
+async function queryPenaltyRecords(sid) {
     const files = await listFiles("penalties");
     const matches = files.filter(f => f.includes(`_${sid}.json`));
     const records = [];
     for (const f of matches) {
         const data = await githubGet(`penalties/${f}`);
         if (data) {
-            const json = JSON.parse(decodeBase64(data.content));
-            records.push(json);
+            const jsonStr = decodeBase64Content(data.content);
+            records.push(JSON.parse(jsonStr));
         }
     }
     records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     return records;
+}
+
+// 渲染附件预览
+function renderAttachments(attachments) {
+    if (!attachments || attachments.length === 0) return "无";
+    let html = "<div class='attach-list'>";
+    attachments.forEach(path => {
+        const filename = path.split('/').pop();
+        const ext = filename.split('.').pop().toLowerCase();
+        const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${path}`;
+        if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) {
+            html += `<div class="attach-item">
+                <a href="${rawUrl}" target="_blank"><img src="${rawUrl}" class="attach-thumb" loading="lazy" alt="${filename}"></a>
+                <span class="attach-name">${filename}</span>
+                <a href="${rawUrl}" target="_blank" class="preview-link">[原图]</a>
+            </div>`;
+        } else if (ext === 'pdf') {
+            html += `<div class="attach-item">
+                <span class="attach-name">${filename}</span>
+                <a href="${rawUrl}" target="_blank" class="preview-link">[打开PDF]</a>
+                <button class="preview-btn" data-url="${rawUrl}" data-type="pdf">预览</button>
+            </div>`;
+        } else {
+            html += `<div class="attach-item">
+                <span class="attach-name">${filename}</span>
+                <a href="${rawUrl}" target="_blank" class="preview-link">[下载]</a>
+            </div>`;
+        }
+    });
+    html += "</div>";
+    // 绑定预览按钮事件（统一委托给 document）
+    return html;
+}
+
+// 统一预览委托
+document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("preview-btn")) {
+        const url = e.target.dataset.url;
+        const type = e.target.dataset.type;
+        showPreview(url, type);
+    }
+});
+
+function showPreview(url, type) {
+    const modal = document.createElement("div");
+    modal.className = "preview-modal";
+    modal.innerHTML = `
+        <div class="preview-backdrop"></div>
+        <div class="preview-content">
+            <span class="preview-close">&times;</span>
+            ${type === 'pdf' ? `<iframe src="${url}" width="100%" height="600px"></iframe>` : `<img src="${url}" style="max-width:100%; max-height:80vh;">`}
+        </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector(".preview-close").onclick = () => modal.remove();
+    modal.querySelector(".preview-backdrop").onclick = () => modal.remove();
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") modal.remove();
+    }, { once: true });
+}
+
+// 删除扣分记录
+async function onDeleteRecord(e) {
+    const btn = e.currentTarget;
+    const id = btn.dataset.id;
+    const sid = btn.dataset.sid;
+    const points = parseInt(btn.dataset.points, 10);
+
+    if (!confirm(`确定要删除该扣分记录吗？\n学号: ${sid}\n分数: ${points} 分\n删除后将自动恢复分数。`)) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "删除中…";
+    try {
+        const token = await getGitHubToken();
+        const penaltyPath = `penalties/penalty_${id}.json`;
+        // 获取扣分记录 sha
+        const fileData = await githubGet(penaltyPath);
+        if (!fileData) throw new Error("记录文件不存在");
+        // 删除记录文件
+        await githubDelete(penaltyPath, fileData.sha, token);
+
+        // 恢复分数
+        const scorePath = `member/member_info/${sid}/score.json`;
+        const scoreData = await githubGet(scorePath);
+        let currentScore = 0;
+        let scoreSha = null;
+        if (scoreData) {
+            const jsonStr = decodeBase64Content(scoreData.content);
+            currentScore = JSON.parse(jsonStr).score;
+            scoreSha = scoreData.sha;
+        }
+        const newScore = currentScore + points;
+        const scoreContent = JSON.stringify({ score: newScore }, null, 2);
+        const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
+        await githubPut(scorePath, scoreB64, `Recover score for ${sid} after delete penalty ${id}`, token, scoreSha);
+
+        // 删除附件文件夹（可选，尝试删除，失败不影响）
+        try {
+            const attachDir = `attachments/${id}`;
+            const attachFiles = await listFiles(attachDir);
+            for (const f of attachFiles) {
+                const fData = await githubGet(`${attachDir}/${f}`);
+                if (fData) await githubDelete(`${attachDir}/${f}`, fData.sha, token).catch(() => {});
+            }
+            // GitHub API 无法删除空目录，忽略
+        } catch (_) { /* 附件删除失败不影响 */ }
+
+        // 更新界面
+        document.getElementById(`row-${id}`).remove();
+        alert("删除成功，分数已恢复。");
+        // 刷新分数列表
+        loadScoreList();
+    } catch (err) {
+        alert("删除失败: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "🗑 删除";
+    }
 }

@@ -19,15 +19,7 @@ function deleteCookie(name) {
     setCookie(name, "", -1);
 }
 
-// --- Base64 编解码（完美支持中文）---
-function encodeBase64(str) {
-    return btoa(unescape(encodeURIComponent(str)));
-}
-function decodeBase64(b64) {
-    return decodeURIComponent(escape(atob(b64)));
-}
-
-// --- 获取并解密 Token ---
+// --- 卡密解密 Token ---
 async function fetchEncryptedKey(card) {
     const resp = await fetch(`/key/${card}`);
     if (!resp.ok) throw new Error("卡密无效或网络错误");
@@ -67,7 +59,18 @@ function getCachedCard() {
     return getCookie("card_key") || "";
 }
 
-// --- GitHub API ---
+// --- 正确解码 GitHub 返回的 Base64 内容（处理中文） ---
+function decodeBase64Content(base64content) {
+    // 使用 TextDecoder 解码 UTF-8
+    const binary = atob(base64content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+}
+
+// --- GitHub API 基础封装 ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const resp = await fetch(url);
