@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // 强制登录，未登录自动跳转
+    if (!requireAuth()) return;
+
     loadScoreList();
     document.getElementById("query-btn").addEventListener("click", queryHandler);
 });
@@ -30,7 +33,7 @@ async function loadScoreList() {
     }
 }
 
-// --- 扣分记录查询与删除 ---
+// --- 扣分记录查询 ---
 async function queryHandler() {
     const sid = document.getElementById("query-student-id").value.trim();
     const resultDiv = document.getElementById("query-result");
@@ -46,7 +49,7 @@ async function queryHandler() {
             return;
         }
         let html = `<table id="penalty-table">
-            <thead><tr><th>时间</th><th>分数</th><th>理由</th><th>附件</th><th>操作</th></tr></thead><tbody>`;
+            <thead><tr><th>时间</th><th>分数</th><th>理由</th><th>附件</th><th>操作</th><th>操作人</th></tr></thead><tbody>`;
         for (const rec of records) {
             const attachCell = renderAttachments(rec.attachments);
             html += `<tr id="row-${rec.id}">
@@ -55,12 +58,12 @@ async function queryHandler() {
                 <td>${rec.reason}</td>
                 <td>${attachCell}</td>
                 <td><button class="delete-btn" data-id="${rec.id}" data-sid="${rec.student_id}" data-points="${rec.points}">🗑 删除</button></td>
+                <td>${rec.operator || '未知'}</td>
             </tr>`;
         }
         html += "</tbody></table>";
         resultDiv.innerHTML = html;
 
-        // 绑定删除事件
         document.querySelectorAll(".delete-btn").forEach(btn => {
             btn.addEventListener("click", onDeleteRecord);
         });
@@ -84,17 +87,16 @@ async function queryPenaltyRecords(sid) {
     return records;
 }
 
-// 渲染附件预览（使用网站自身路径，解决中文文件名问题）
+// 渲染附件（使用网站自身路径，解决中文文件名问题）
 function renderAttachments(attachments) {
     if (!attachments || attachments.length === 0) return "无";
     let html = "<div class='attach-list'>";
     attachments.forEach(path => {
-        // 分离路径和文件名，对文件名进行编码
         const parts = path.split('/');
         const filename = parts.pop();
         const safeFilename = encodeURIComponent(filename);
         const safePath = parts.join('/') + '/' + safeFilename;
-        const siteUrl = '/' + safePath;  // 直接使用网站根路径
+        const siteUrl = '/' + safePath;
 
         const ext = filename.split('.').pop().toLowerCase();
         if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) {
@@ -120,7 +122,7 @@ function renderAttachments(attachments) {
     return html;
 }
 
-// 统一预览委托
+// 预览委托
 document.addEventListener("click", function(e) {
     if (e.target.classList.contains("preview-btn")) {
         const url = e.target.dataset.url;
@@ -149,7 +151,7 @@ function showPreview(url, type) {
     }, { once: true });
 }
 
-// 删除扣分记录（保持不变）
+// 删除扣分记录（恢复分数）
 async function onDeleteRecord(e) {
     const btn = e.currentTarget;
     const id = btn.dataset.id;
@@ -163,7 +165,7 @@ async function onDeleteRecord(e) {
     btn.disabled = true;
     btn.textContent = "删除中…";
     try {
-        const token = await getGitHubToken();
+        const token = getToken();
         const penaltyPath = `penalties/penalty_${id}.json`;
         const fileData = await githubGet(penaltyPath);
         if (!fileData) throw new Error("记录文件不存在");
@@ -184,7 +186,7 @@ async function onDeleteRecord(e) {
         const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
         await githubPut(scorePath, scoreB64, `Recover score for ${sid} after delete penalty ${id}`, token, scoreSha);
 
-        // 尝试删除附件文件夹（可选）
+        // 尝试删除附件文件夹
         try {
             const attachDir = `attachments/${id}`;
             const attachFiles = await listFiles(attachDir);

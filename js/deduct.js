@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // 强制登录
+    if (!requireAuth()) return;
+
     const form = document.getElementById("deduct-form");
     const msgBox = document.getElementById("message");
 
@@ -20,12 +23,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            const token = await getGitHubToken();
+            const token = getToken();
+            const adminId = getAdminId();
             const ts = generateTimestamp();
             const attachmentPaths = [];
             const uploadedShas = [];
 
-            // 1. 上传附件
             if (files.length > 0) {
                 showMessage("正在上传附件...", "info");
                 for (const file of files) {
@@ -45,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // 2. 更新分数
             showMessage("正在更新分数...", "info");
             const scorePath = `member/member_info/${studentId}/score.json`;
             let currentScore = 0;
@@ -70,7 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("扣分失败：分数更新出错，已回滚附件");
             }
 
-            // 3. 创建扣分记录
             showMessage("正在创建扣分记录...", "info");
             const record = {
                 id: `${ts}_${studentId}`,
@@ -79,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 reason: reason,
                 attachments: attachmentPaths,
                 timestamp: new Date().toISOString(),
-                operator: "web"
+                operator: adminId        // ← 使用当前管理员 ID
             };
             const penaltyPath = `penalties/penalty_${ts}_${studentId}.json`;
             const penaltyB64 = btoa(unescape(encodeURIComponent(JSON.stringify(record, null, 2))));

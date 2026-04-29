@@ -1,3 +1,4 @@
+/* ===== 基础样式（保留原有） ===== */
 body {
     font-family: "Segoe UI", Arial, sans-serif;
     margin: 20px;
@@ -48,19 +49,199 @@ a:hover { text-decoration: underline; }
 .form-inline input { flex: 1; }
 .error { color: #d32f2f; }
 
-/* --- 附件预览样式 --- */
+/* 附件预览（保留） */
 .attach-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .attach-item { display: flex; flex-direction: column; align-items: center; max-width: 120px; text-align: center; }
 .attach-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; }
 .attach-name { font-size: 11px; word-break: break-all; }
 .preview-link { font-size: 12px; }
 
-/* --- 预览模态 --- */
+/* 模态窗（保留） */
 .preview-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex; align-items: center; justify-content: center; }
 .preview-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
 .preview-content { position: relative; max-width: 90%; max-height: 90%; background: white; padding: 10px; border-radius: 8px; overflow: auto; }
 .preview-close { position: absolute; top: 5px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer; color: #333; }
 
-/* 删除按钮 */
+/* 删除按钮（保留） */
 .delete-btn { background: #dc3545; margin-left: 5px; }
 .delete-btn:hover { background: #b02a37; }
+
+/* ===== 新增：登录页 ===== */
+.login-container {
+    max-width: 400px;
+    margin: 80px auto;
+}
+.login-container h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.login-container .form-group {
+    margin-bottom: 20px;
+}
+.login-container button {
+    width: 100%;
+    padding: 12px;
+}
+.alt-link {
+    text-align: center;
+    margin-top: 15px;
+}
+
+/* ===== 新增：文件编辑器 ===== */
+.editor-wrapper {
+    display: flex;
+    height: calc(100vh - 160px);
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.file-tree {
+    width: 260px;
+    background: #fafafa;
+    border-right: 1px solid #ddd;
+    overflow-y: auto;
+    padding: 10px;
+}
+.file-tree ul {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0;
+}
+.file-tree li {
+    margin: 2px 0;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    user-select: none;
+}
+.file-tree li:hover {
+    background: #e6f0ff;
+}
+.file-tree li.selected {
+    background: #cce5ff;
+    font-weight: bold;
+}
+.file-tree .dir-label {
+    font-weight: 600;
+    color: #444;
+}
+.file-tree .file-icon {
+    margin-right: 6px;
+    color: #007bff;
+}
+.editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+.editor-toolbar button {
+    padding: 6px 14px;
+    font-size: 14px;
+}
+.editor-toolbar .file-path {
+    font-family: monospace;
+    color: #888;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.editor-area {
+    flex: 1;
+    display: flex;
+    border: none;
+}
+.editor-area textarea {
+    flex: 1;
+    border: none;
+    padding: 15px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    background: #fff;
+    color: #222;
+}
+.commit-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fff;
+}
+.commit-item {
+    border-bottom: 1px solid #eee;
+    padding: 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.commit-item:last-child { border-bottom: none; }
+.commit-message { font-weight: 500; }
+.commit-date { font-size: 12px; color: #888; }
+
+/* ===== 新增：帖子系统 ===== */
+.post-list {
+    margin-top: 20px;
+}
+.post-item {
+    background: #f9f9f9;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.post-item .post-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #007bff;
+    cursor: pointer;
+}
+.post-meta {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+.post-actions button {
+    margin-left: 6px;
+    font-size: 13px;
+    padding: 4px 12px;
+}
+.editor-toolbar .tool-btn {
+    background: #eee;
+    border: 1px solid #ccc;
+    color: #333;
+    padding: 4px 8px;
+    margin-right: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+.editor-toolbar .tool-btn:hover {
+    background: #ddd;
+}
+.rich-editor {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 15px;
+    min-height: 250px;
+    background: white;
+    overflow-y: auto;
+    outline: none;
+}
+.rich-editor:focus {
+    border-color: #007bff;
+}

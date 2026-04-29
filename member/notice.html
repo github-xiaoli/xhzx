@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帖子中心 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📢 帖子中心</h1>
+        <div id="auth-status" style="margin-bottom:10px;"></div>
+        <button id="btn-new-post" style="display:none;">➕ 发布新帖</button>
+        <div id="post-list" class="post-list">
+            <!-- 帖子列表由 JS 渲染 -->
+        </div>
+
+        <!-- 发布/编辑编辑器（初始隐藏） -->
+        <div id="editor-section" style="display:none; margin-top:20px;">
+            <h2 id="editor-title">发布新帖</h2>
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" id="post-title" placeholder="帖子标题">
+            </div>
+            <div class="form-group">
+                <label>内容</label>
+                <div class="editor-toolbar">
+                    <button class="tool-btn" data-command="bold"><b>B</b></button>
+                    <button class="tool-btn" data-command="italic"><i>I</i></button>
+                    <button class="tool-btn" data-command="underline"><u>U</u></button>
+                    <button class="tool-btn" data-command="createLink">🔗</button>
+                    <button class="tool-btn" data-command="insertUnorderedList">• 列表</button>
+                    <button class="tool-btn" data-command="insertOrderedList">1. 列表</button>
+                </div>
+                <div id="rich-editor" class="rich-editor" contenteditable="true"></div>
+            </div>
+            <button id="btn-publish" class="btn">发布</button>
+            <button onclick="document.getElementById('editor-section').style.display='none'" class="btn" style="background:gray;">取消</button>
+        </div>
+
+        <p style="margin-top:20px;"><a href="home.html">← 返回首页</a></p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="../js/github.js"></script>
+    <script src="../js/post.js"></script>
+    <script>
+        // 检查登录状态，显示发布按钮
+        if (getToken() && getAdminId()) {
+            document.getElementById("btn-new-post").style.display = "inline-block";
+            document.getElementById("auth-status").innerHTML = `<span style="color:green;">已登录 (${getAdminId()})</span>`;
+        } else {
+            document.getElementById("auth-status").innerHTML = `<span style="color:gray;">仅浏览模式，<a href="login.html">登录</a>后可发布</span>`;
+        }
+    </script>
+</body>
+</html>

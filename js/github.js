@@ -1,7 +1,7 @@
+// --- 配置 ---
 const GITHUB_OWNER = "github-xiaoli";
 const GITHUB_REPO = "xhzx";
 const API_BASE = "https://api.github.com";
-const ENCRYPTION_KEY = "aes256keyforgithub2026secret!!12";
 
 // --- Cookie 工具 ---
 function getCookie(name) {
@@ -19,47 +19,27 @@ function deleteCookie(name) {
     setCookie(name, "", -1);
 }
 
-// --- 卡密解密 Token ---
-async function fetchEncryptedKey(card) {
-    const resp = await fetch(`/key/${card}`);
-    if (!resp.ok) throw new Error("卡密无效或网络错误");
-    return await resp.text();
+// --- 认证相关 ---
+function getToken() {
+    return getCookie("github_token");
 }
-
-function decryptToken(encrypted) {
-    const parts = encrypted.split(":");
-    if (parts.length !== 2) throw new Error("密文格式错误");
-    const iv = CryptoJS.enc.Base64.parse(parts[0]);
-    const ciphertext = parts[1];
-    const key = CryptoJS.enc.Utf8.parse(ENCRYPTION_KEY);
-    const decrypted = CryptoJS.AES.decrypt(ciphertext, key, { iv: iv });
-    return decrypted.toString(CryptoJS.enc.Utf8);
+function getAdminId() {
+    return getCookie("admin_id");
 }
-
-async function getGitHubToken() {
-    let token = getCookie("github_token");
-    if (token) return token;
-
-    const card = prompt("请输入卡密以获取操作权限：");
-    if (!card) throw new Error("未提供卡密");
-    const encrypted = await fetchEncryptedKey(card);
-    token = decryptToken(encrypted);
-    if (!token) throw new Error("解密失败，请检查卡密是否正确");
-    setCookie("github_token", token, 7);
-    setCookie("card_key", card, 7);
-    return token;
+function requireAuth() {
+    if (!getToken() || !getAdminId()) {
+        const currentPage = window.location.pathname.split('/').pop();
+        window.location.href = `login.html?redirect=${encodeURIComponent(currentPage)}`;
+        return false;
+    }
+    return true;
 }
-
-function clearAuthCookies() {
+function clearAuth() {
     deleteCookie("github_token");
-    deleteCookie("card_key");
+    deleteCookie("admin_id");
 }
 
-function getCachedCard() {
-    return getCookie("card_key") || "";
-}
-
-// --- 正确解码 Base64 内容（处理中文） ---
+// --- Base64 解码（UTF-8） ---
 function decodeBase64Content(base64content) {
     const binary = atob(base64content);
     const bytes = new Uint8Array(binary.length);
@@ -69,42 +49,20 @@ function decodeBase64Content(base64content) {
     return new TextDecoder('utf-8').decode(bytes);
 }
 
-// --- 核心修改：githubGet 自动携带 token（如果存在）--- 
+// --- GitHub API 封装（自动携带 token） ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const headers = {};
-    // 如果 Cookie 中有 token，自动附加认证头
-    const token = getCookie("github_token");
-    if (token) {
-        headers["Authorization"] = `token ${token}`;
-    }
+    const token = getToken();
+    if (token) headers["Authorization"] = `token ${token}`;
     const resp = await fetch(url, { headers });
     if (!resp.ok) {
         if (resp.status === 403 || resp.status === 429) {
-            // 速率限制或权限错误
             const errData = await resp.json().catch(() => ({}));
             if (errData.message && errData.message.includes("rate limit")) {
-                // 未认证且超限时，提示输入卡密
-                if (!token) {
-                    const card = prompt("API 请求次数超限，请输入卡密以提升速率限制：");
-                    if (card) {
-                        const encrypted = await fetchEncryptedKey(card);
-                        const decrypted = decryptToken(encrypted);
-                        if (decrypted) {
-                            setCookie("github_token", decrypted, 7);
-                            setCookie("card_key", card, 7);
-                            // 重试带 token 的请求
-                            headers["Authorization"] = `token ${decrypted}`;
-                            const retryResp = await fetch(url, { headers });
-                            if (retryResp.ok) return await retryResp.json();
-                            else throw new Error("重试失败，请稍后再试");
-                        }
-                    }
-                }
-                throw new Error("API 速率限制已耗尽，请稍后刷新页面或重新输入卡密。");
-            } else {
-                throw new Error(`请求失败 (${resp.status}): ${errData.message || '无权限'}`);
+                throw new Error("API 速率限制已耗尽，请稍后再试。");
             }
+            throw new Error(`请求失败 (${resp.status}): 权限不足或触发限制`);
         }
         if (resp.status === 404) return null;
         throw new Error(`读取 ${path} 失败 (${resp.status})`);
@@ -112,7 +70,6 @@ async function githubGet(path) {
     return await resp.json();
 }
 
-// --- 其他 GitHub API 封装（保持不变） ---
 async function githubPut(path, contentBase64, message, token, sha = null) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const body = { message, content: contentBase64, branch: "main" };
@@ -178,4 +135,30 @@ function fileToBase64(file) {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+// 下载 ZIP
+async function downloadRepoZip() {
+    const token = getToken();
+    if (!token) throw new Error("未登录");
+    const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
+    const resp = await fetch(url, {
+        headers: { "Authorization": `token ${token}` }
+    });
+    if (!resp.ok) throw new Error("下载失败");
+    const blob = await resp.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${GITHUB_REPO}_backup.zip`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// 获取用户信息（用于验证 token）
+async function fetchUserInfo(token) {
+    const resp = await fetch(`${API_BASE}/user`, {
+        headers: { "Authorization": `token ${token}` }
+    });
+    if (!resp.ok) return null;
+    return await resp.json();
 }

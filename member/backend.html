@@ -38,12 +38,10 @@
 <body>
     <div class="container">
         <h1>⚙️ 后台管理主页</h1>
-
         <div class="status-panel" id="auth-status">
             <strong>认证状态：</strong><span id="auth-text">检查中…</span>
             <button id="clear-auth-btn" style="margin-left:15px; display:none;">清除认证信息</button>
         </div>
-
         <div class="dashboard-grid">
             <a href="deduct.html" class="dashboard-card">
                 <h3>⚡ 扣分操作</h3>
@@ -53,43 +51,47 @@
                 <h3>📋 分数管理</h3>
                 <p>成员分数列表与记录查询</p>
             </a>
+            <a href="file_editor.html" class="dashboard-card">
+                <h3>📁 文件编辑器</h3>
+                <p>浏览、编辑仓库文件，备份与回滚</p>
+            </a>
+            <a href="notice.html" class="dashboard-card">
+                <h3>📢 帖子中心</h3>
+                <p>发布和管理公告帖子</p>
+            </a>
             <a href="test_key.html" class="dashboard-card">
                 <h3>🔑 卡密测试</h3>
-                <p>测试卡密有效性并保存Token</p>
+                <p>测试卡密有效性并保存Token（备用）</p>
             </a>
         </div>
-
         <p style="margin-top:30px;">
             <a href="home.html">← 返回前台主页</a>
         </p>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="../js/github.js"></script>
     <script>
         function updateAuthStatus() {
-            const token = getCookie("github_token");
-            const card = getCachedCard();
+            const token = getToken();
+            const adminId = getAdminId();
             const textSpan = document.getElementById("auth-text");
             const clearBtn = document.getElementById("clear-auth-btn");
-            if (token && card) {
-                textSpan.textContent = `已授权 (卡密 ${card}，Token 已缓存)`;
-                clearBtn.style.display = "inline-block";
-            } else if (token) {
-                textSpan.textContent = "已授权 (Token 缓存中，但卡密未知)";
+            if (token && adminId) {
+                textSpan.textContent = `已授权 (管理员 ${adminId})`;
                 clearBtn.style.display = "inline-block";
             } else {
-                textSpan.textContent = "未授权，进行写操作时会提示输入卡密";
+                textSpan.textContent = "未登录，即将跳转...";
                 clearBtn.style.display = "none";
+                // 自动跳转登录
+                setTimeout(() => {
+                    window.location.href = `login.html?redirect=backend.html`;
+                }, 800);
             }
         }
-
         document.getElementById("clear-auth-btn").addEventListener("click", () => {
-            clearAuthCookies();
+            clearAuth();
             updateAuthStatus();
-            alert("认证信息已清除，下次写操作需重新输入卡密。");
         });
-
         updateAuthStatus();
     </script>
 </body>

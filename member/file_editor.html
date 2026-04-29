@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件编辑器 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📁 仓库文件编辑器</h1>
+        <div id="editor-message" class="message"></div>
+        <div class="editor-toolbar">
+            <button id="btn-backup" title="下载整个仓库 ZIP 备份">⬇️ 下载备份</button>
+            <button id="btn-commits">📜 提交历史</button>
+            <button id="btn-new-file">➕ 新建文件</button>
+            <span class="file-path" id="current-file-path"></span>
+        </div>
+        <div class="editor-wrapper">
+            <div class="file-tree" id="file-tree">
+                <!-- 树状结构由 JS 渲染 -->
+            </div>
+            <div class="editor-panel">
+                <textarea id="file-content" placeholder="选择左侧文件以编辑..."></textarea>
+                <div class="editor-toolbar" style="justify-content: flex-end;">
+                    <button id="btn-save-file" disabled>💾 保存文件</button>
+                    <button id="btn-delete-file" class="delete-btn" disabled>🗑 删除</button>
+                </div>
+            </div>
+        </div>
+        <p style="margin-top:15px;">
+            <a href="backend.html">← 返回后台</a> | <a href="home.html">前台首页</a>
+        </p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="../js/github.js"></script>
+    <script src="../js/file_editor.js"></script>
+</body>
+</html>
