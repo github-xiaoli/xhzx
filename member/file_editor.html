@@ -5,71 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>文件编辑器 - 器材组</title>
     <link rel="stylesheet" href="../css/style.css">
-    <!-- 为编辑器增加的局部样式（也可并入全局CSS，这里单独保证） -->
-    <style>
-        /* 确保编辑区域能够自由伸缩 */
-        .editor-wrapper {
-            display: flex;
-            height: calc(100vh - 200px);  /* 可根据需要调整 */
-            min-height: 400px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .file-tree {
-            width: 260px;
-            background: #fafafa;
-            border-right: 1px solid #ddd;
-            overflow-y: auto;
-            padding: 10px;
-            flex-shrink: 0;
-        }
-        .editor-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-        .editor-area {
-            flex: 1;
-            display: flex;
-        }
-        .editor-area textarea {
-            flex: 1;
-            border: none;
-            padding: 15px;
-            font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            resize: vertical;          /* 👈 允许手动拖拽调整高度 */
-            min-height: 200px;
-            outline: none;
-            background: #fff;
-            color: #222;
-        }
-        /* 工具栏右侧按钮间距 */
-        .editor-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            border-bottom: 1px solid #ddd;
-            background: #f8f9fa;
-            flex-wrap: wrap;
-        }
-        .editor-toolbar button {
-            padding: 6px 14px;
-            font-size: 14px;
-        }
-        .editor-toolbar .file-path {
-            font-family: monospace;
-            color: #888;
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -80,19 +15,16 @@
             <button id="btn-commits">📜 提交历史</button>
             <button id="btn-new-file">➕ 新建文件</button>
             <span class="file-path" id="current-file-path"></span>
-            <!-- 以下两个按钮由 JS 动态插入 -->
         </div>
         <div class="editor-wrapper">
             <div class="file-tree" id="file-tree">
                 <!-- 树状结构由 JS 渲染 -->
             </div>
             <div class="editor-panel">
-                <div class="editor-area">
-                    <textarea id="file-content" placeholder="选择左侧文件以编辑..." style="height:100%;"></textarea>
-                </div>
+                <textarea id="file-content" placeholder="选择左侧文件以编辑..."></textarea>
                 <div class="editor-toolbar" style="justify-content: flex-end;">
                     <button id="btn-save-file" disabled>💾 保存文件</button>
-                    <button id="btn-delete-file" class="delete-btn" disabled>🗑 删除文件</button>
+                    <button id="btn-delete-file" class="delete-btn" disabled>🗑 删除</button>
                 </div>
             </div>
         </div>
@@ -101,7 +33,7 @@
         </p>
     </div>
 
-    <!-- 依赖脚本 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="../js/github.js"></script>
     <script src="../js/file_editor.js"></script>
 </body>
