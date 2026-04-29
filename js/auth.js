@@ -12,13 +12,20 @@ function deriveKey(password) {
 }
 
 function decryptTokenWithPassword(encrypted, password) {
-    const parts = encrypted.split(":");
-    if (parts.length !== 2) throw new Error("密文格式错误");
-    const iv = CryptoJS.enc.Base64.parse(parts[0]);
-    const ciphertext = parts[1];
-    const key = deriveKey(password);
-    const decrypted = CryptoJS.AES.decrypt(ciphertext, key, { iv: iv });
-    return decrypted.toString(CryptoJS.enc.Utf8);
+    try {
+        const parts = encrypted.split(":");
+        if (parts.length !== 2) throw new Error("密文格式错误");
+        const iv = CryptoJS.enc.Base64.parse(parts[0]);
+        const ciphertext = parts[1];
+        const key = deriveKey(password);
+        const decrypted = CryptoJS.AES.decrypt(ciphertext, key, { iv: iv });
+        const token = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!token || token.length === 0) throw new Error("解密结果为空（可能卡密错误）");
+        return token;
+    } catch (e) {
+        console.error("解密错误详情:", e);
+        throw new Error("卡密错误，解密失败: " + e.message);
+    }
 }
 
 // 登录流程
