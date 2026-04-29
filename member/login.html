@@ -45,11 +45,11 @@
         </p>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- 注意：不再引入 CryptoJS CDN -->
     <script src="../js/github.js"></script>
     <script src="../js/auth.js"></script>
     <script>
-        // 登录逻辑
+        // 登录
         document.getElementById("login-btn").addEventListener("click", async () => {
             const adminId = document.getElementById("admin-id").value.trim();
             const pwd = document.getElementById("password").value;
