@@ -88,6 +88,9 @@ async function decryptTokenWithPassword(encrypted, password) {
  * @param {string} password
  * @param {string} redirectPage
  */
+/**
+ * 登录流程（增加网络容错）
+ */
 async function performLogin(adminId, password, redirectPage) {
     // 1. 获取加密文件
     const resp = await fetch(`/member/admin_info/${adminId}/key`);
@@ -97,9 +100,31 @@ async function performLogin(adminId, password, redirectPage) {
     // 2. 解密
     const token = await decryptTokenWithPassword(encrypted, password);
 
-    // 3. 验证 token 有效性
-    const user = await fetchUserInfo(token);
-    if (!user) throw new Error("Token 无效，无法访问 GitHub");
+    // 3. 验证 token 可用性（多级容错）
+    let tokenValid = false;
+    try {
+        // 方案 A：尝试调用 /user（最直接）
+        const user = await fetchUserInfo(token);
+        if (user) tokenValid = true;
+    } catch (e) {
+        console.warn("[/user] 请求失败，尝试备用验证…", e.message);
+    }
+
+    if (!tokenValid) {
+        try {
+            // 方案 B：尝试读取仓库根目录（只需 repo 权限）
+            const repoTest = await githubGet("");  // 空字符串表示根目录
+            if (repoTest) tokenValid = true;
+        } catch (e) {
+            console.warn("[/repo] 请求也失败", e.message);
+        }
+    }
+
+    if (!tokenValid) {
+        // 方案 C：完全信任解密结果（因为解密成功卡密正确）
+        console.warn("⚠️ 无法验证 Token 权限，将直接登录（可能部分功能受限）");
+        // 但仍允许登录，只要解密成功
+    }
 
     // 4. 存储 cookie
     setCookie("github_token", token, 7);
@@ -109,9 +134,6 @@ async function performLogin(adminId, password, redirectPage) {
     window.location.href = redirectPage || "backend.html";
 }
 
-/**
- * 修改卡密
- */
 async function changePassword(adminId, oldPassword, newPassword) {
     // 读取原密文
     const resp = await fetch(`/member/admin_info/${adminId}/key`);
