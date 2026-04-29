@@ -5,42 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>帖子中心 - 器材组</title>
     <link rel="stylesheet" href="../css/style.css">
-    <style>
-        /* 帖子编辑器专用样式 */
-        #post-code {
-            width: 100%;
-            height: 300px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            resize: vertical;
-            box-sizing: border-box;
-            background: #fafafa;
-            color: #222;
-            line-height: 1.5;
-        }
-        .preview-container {
-            margin-top: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            overflow: hidden;
-            position: relative;
-        }
-        .preview-container iframe {
-            width: 100%;
-            height: 300px;
-            border: none;
-            background: white;
-        }
-        .toolbar-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            align-items: center;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -51,38 +15,37 @@
             <!-- 帖子列表由 JS 渲染 -->
         </div>
 
-        <!-- 发布/编辑区域（初始隐藏） -->
+        <!-- 发布/编辑编辑器（初始隐藏） -->
         <div id="editor-section" style="display:none; margin-top:20px;">
             <h2 id="editor-title">发布新帖</h2>
             <div class="form-group">
-                <label for="post-title">标题</label>
+                <label>标题</label>
                 <input type="text" id="post-title" placeholder="帖子标题">
             </div>
             <div class="form-group">
-                <label for="post-code">HTML 代码</label>
-                <textarea id="post-code" placeholder="在此输入 HTML 代码（支持 JavaScript）…"></textarea>
-            </div>
-            <div class="toolbar-row">
-                <button id="btn-preview" class="btn" style="background:#6c757d;">👁 预览</button>
-                <button id="btn-publish" class="btn">发布</button>
-                <button id="btn-cancel-editor" class="btn" style="background:gray;">取消</button>
-            </div>
-            <div id="preview-box" class="preview-container" style="display:none;">
-                <div style="padding:5px 10px; background:#f8f9fa; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
-                    <span>预览</span>
-                    <button id="btn-close-preview" style="background:none; border:none; font-size:18px; cursor:pointer; padding:0 5px;">&times;</button>
+                <label>内容</label>
+                <div class="editor-toolbar">
+                    <button class="tool-btn" data-command="bold"><b>B</b></button>
+                    <button class="tool-btn" data-command="italic"><i>I</i></button>
+                    <button class="tool-btn" data-command="underline"><u>U</u></button>
+                    <button class="tool-btn" data-command="createLink">🔗</button>
+                    <button class="tool-btn" data-command="insertUnorderedList">• 列表</button>
+                    <button class="tool-btn" data-command="insertOrderedList">1. 列表</button>
                 </div>
-                <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin" title="帖子预览"></iframe>
+                <div id="rich-editor" class="rich-editor" contenteditable="true"></div>
             </div>
+            <button id="btn-publish" class="btn">发布</button>
+            <button onclick="document.getElementById('editor-section').style.display='none'" class="btn" style="background:gray;">取消</button>
         </div>
 
-        <p style="margin-top:20px;"><a href="home.html">← 返回首页</a>|<a href="backend.html">← 返回后台主页（内部）</a></p>
+        <p style="margin-top:20px;"><a href="home.html">← 返回首页</a></p>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="../js/github.js"></script>
     <script src="../js/post.js"></script>
     <script>
-        // 根据登录状态显示发布按钮
+        // 检查登录状态，显示发布按钮
         if (getToken() && getAdminId()) {
             document.getElementById("btn-new-post").style.display = "inline-block";
             document.getElementById("auth-status").innerHTML = `<span style="color:green;">已登录 (${getAdminId()})</span>`;
