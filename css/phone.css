@@ -1,0 +1,118 @@
+/* 手机版专属样式 - 最大宽度 600px 优先 */
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    margin: 0;
+    padding: 12px;
+    background: #f0f2f5;
+    color: #333;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+.container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    background: white;
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+}
+h1 { font-size: 20px; margin-top: 0; }
+h2 { font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+label { font-weight: 600; display: block; margin-bottom: 4px; }
+input, textarea {
+    width: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    margin-bottom: 12px;
+}
+button, .btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+}
+button.delete-btn { background: #dc3545; }
+.message { padding: 12px; margin: 10px 0; border-radius: 6px; }
+.message.success { background: #d4edda; color: #155724; }
+.message.error { background: #f8d7da; color: #721c24; }
+.message.info { background: #d1ecf1; color: #0c5460; }
+
+.dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+.dashboard-card {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+}
+.dashboard-card h3 { margin: 0; color: #007bff; font-size: 18px; }
+.status-panel {
+    background: #f0f8ff;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+    margin-bottom: 12px;
+}
+
+/* 文件编辑器手机版 */
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.editor-toolbar button {
+    width: auto;
+    flex: 1 1 auto;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+.editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    height: auto;
+}
+.file-tree {
+    background: #fafafa;
+    border-bottom: 1px solid #ddd;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 8px;
+}
+.editor-panel textarea {
+    height: 50vh;
+    border: none;
+    border-radius: 0;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 10px;
+}
+.editor-panel .editor-toolbar {
+    justify-content: flex-end;
+}
+
+.post-item { flex-direction: column; align-items: flex-start; }
+.post-actions { margin-top: 8px; display: flex; gap: 8px; }
+.post-actions button { width: auto; }
+form button { width: 100%; }

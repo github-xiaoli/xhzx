@@ -2,40 +2,30 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理员登录 - 器材组</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>管理员登录(手机版) - 器材组</title>
+    <link rel="stylesheet" href="../css/phone.css">
 </head>
 <body>
-    <div class="container login-container">
+    <div class="container">
         <h1>🔐 管理员登录</h1>
         <div id="login-message" class="message"></div>
         <div id="login-form">
-            <div class="form-group">
-                <label for="admin-id">管理员 ID</label>
-                <input type="text" id="admin-id" placeholder="如 admin01" autofocus>
-            </div>
-            <div class="form-group">
-                <label for="password">卡密</label>
-                <input type="password" id="password" placeholder="输入解密卡密">
-            </div>
-            <button id="login-btn" class="btn">登录</button>
-            <div class="alt-link">
-                <a href="#" id="show-change-card">修改卡密</a>
-            </div>
+            <label for="admin-id">管理员 ID</label>
+            <input type="text" id="admin-id" placeholder="如 admin01" autofocus>
+            <label for="password">卡密</label>
+            <input type="password" id="password" placeholder="输入解密卡密">
+            <button id="login-btn">登录</button>
+            <a href="#" id="show-change-card" style="display:block; text-align:center; margin-top:10px;">修改卡密</a>
         </div>
         <div id="change-card-form" style="display:none;">
             <h2>修改卡密</h2>
-            <div class="form-group">
-                <label for="old-password">旧卡密</label>
-                <input type="password" id="old-password">
-            </div>
-            <div class="form-group">
-                <label for="new-password">新卡密</label>
-                <input type="password" id="new-password">
-            </div>
-            <button id="change-btn" class="btn">确认修改</button>
-            <a href="#" id="show-login" style="display:block; margin-top:10px;">返回登录</a>
+            <label for="old-password">旧卡密</label>
+            <input type="password" id="old-password">
+            <label for="new-password">新卡密</label>
+            <input type="password" id="new-password">
+            <button id="change-btn">确认修改</button>
+            <a href="#" id="show-login" style="display:block; text-align:center; margin-top:10px;">返回登录</a>
         </div>
         <p style="text-align:center; margin-top:20px;">
             <a href="home.html">← 返回首页</a>
@@ -76,7 +66,7 @@
             if (!adminId || !oldPwd || !newPwd) { msgBox.textContent = "请填写所有字段"; msgBox.className = "message error"; return; }
             try {
                 await changePassword(adminId, oldPwd, newPwd);
-                msgBox.textContent = "卡密修改成功，请使用新卡密登录。";
+                msgBox.textContent = "卡密修改成功";
                 msgBox.className = "message success";
                 document.getElementById("change-card-form").style.display = "none";
                 document.getElementById("login-form").style.display = "block";

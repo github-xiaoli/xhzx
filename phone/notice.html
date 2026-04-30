@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>帖子中心(手机) - 器材组</title>
+    <link rel="stylesheet" href="../css/phone.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📢 帖子中心</h1>
+        <div id="auth-status" style="margin-bottom:10px;"></div>
+        <button id="btn-new-post" style="display:none;">➕ 发布新帖</button>
+        <div id="post-list" class="post-list"></div>
+
+        <div id="editor-section" style="display:none; margin-top:20px;">
+            <h2 id="editor-title">发布新帖</h2>
+            <label for="post-title">标题</label>
+            <input type="text" id="post-title" placeholder="帖子标题">
+            
+            <label for="post-code">HTML 代码</label>
+            <textarea id="post-code" placeholder="在此输入 HTML 代码（支持 JavaScript）…"></textarea>
+            
+            <div style="display:flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                <button id="btn-preview" style="background:#6c757d; flex:1;">👁 预览</button>
+                <button id="btn-publish" style="flex:1;">发布</button>
+                <button id="btn-cancel-editor" style="background:gray; flex:1;">取消</button>
+            </div>
+            <div id="preview-box" class="preview-container" style="display:none;">
+                <div style="padding:5px 10px; background:#f8f9fa; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                    <span>预览</span>
+                    <button id="btn-close-preview" style="background:none; border:none; font-size:18px; cursor:pointer;">&times;</button>
+                </div>
+                <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin" title="帖子预览" style="width:100%; height:250px; border:none;"></iframe>
+            </div>
+        </div>
+
+        <p style="margin-top:20px;">
+            <a href="backend.html">← 返回后台</a> &nbsp;|&nbsp; 
+            <a href="home.html">← 返回前台</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/post.js"></script>
+    <script>
+        if (getToken() && getAdminId()) {
+            document.getElementById("btn-new-post").style.display = "inline-block";
+            document.getElementById("auth-status").innerHTML = `<span style="color:green;">已登录 (${getAdminId()})</span>`;
+        } else {
+            document.getElementById("auth-status").innerHTML = `<span style="color:gray;">仅浏览模式，<a href="login.html">登录</a>后可发布</span>`;
+        }
+    </script>
+</body>
+</html>

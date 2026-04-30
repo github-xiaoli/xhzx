@@ -1,35 +1,32 @@
-/**
- * 文件编辑器 – 增强版
- * 新增：全屏编辑、可拖拽分栏、删除文件夹、网络重试
- */
 let currentPath = "";
 let currentFilePath = null;
 let currentFileSha = null;
-let selectedDirPath = null;     // 当前选中的目录路径（用于删除文件夹）
+let selectedDirPath = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
     if (!requireAuth()) return;
 
-    // 按钮事件
     document.getElementById("btn-backup").addEventListener("click", downloadRepoZipSafe);
     document.getElementById("btn-commits").addEventListener("click", showCommitHistory);
     document.getElementById("btn-save-file").addEventListener("click", saveFile);
     document.getElementById("btn-new-file").addEventListener("click", createNewFile);
     document.getElementById("btn-delete-file").addEventListener("click", deleteCurrentFile);
+    document.getElementById("btn-download-file").addEventListener("click", downloadCurrentFile);
+    document.getElementById("btn-download-folder").addEventListener("click", downloadSelectedFolder);
+    document.getElementById("btn-upload-file").addEventListener("click", () => document.getElementById("upload-file-input").click());
+    document.getElementById("btn-upload-folder").addEventListener("click", () => document.getElementById("upload-folder-input").click());
+    document.getElementById("upload-file-input").addEventListener("change", handleFileUpload);
+    document.getElementById("upload-folder-input").addEventListener("change", handleFolderUpload);
 
-    // 新增按钮（需要在页面中添加，提供动态注入）
     addToolbarButtons();
-
-    // 初始化文件树
     loadFileTree("");
 });
 
-// 动态增加「全屏编辑」「删除文件夹」按钮
 function addToolbarButtons() {
     const toolbar = document.querySelector(".editor-toolbar");
     if (!toolbar) return;
 
-    // 全屏编辑
+    // 全屏按钮
     const fullBtn = document.createElement("button");
     fullBtn.id = "btn-fullscreen";
     fullBtn.title = "全屏编辑";
@@ -37,7 +34,7 @@ function addToolbarButtons() {
     fullBtn.addEventListener("click", toggleFullscreen);
     toolbar.appendChild(fullBtn);
 
-    // 删除文件夹（初始禁用）
+    // 删除文件夹按钮
     const delDirBtn = document.createElement("button");
     delDirBtn.id = "btn-delete-dir";
     delDirBtn.className = "delete-btn";
@@ -48,7 +45,6 @@ function addToolbarButtons() {
     toolbar.appendChild(delDirBtn);
 }
 
-// ==================== 消息提示 ====================
 function showMessage(msg, type) {
     const box = document.getElementById("editor-message");
     if (box) {
@@ -57,7 +53,6 @@ function showMessage(msg, type) {
     }
 }
 
-// ==================== 文件树加载 ====================
 async function loadFileTree(path, retry = 3) {
     currentPath = path;
     const treeEl = document.getElementById("file-tree");
@@ -75,7 +70,7 @@ async function loadFileTree(path, retry = 3) {
         } catch (err) {
             if (attempt === retry - 1) {
                 treeEl.innerHTML = `<p class="error">加载失败（已重试${retry}次）: ${err.message}</p>`;
-                showMessage("目录加载失败，请检查网络或权限", "error");
+                showMessage("目录加载失败", "error");
             } else {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -86,12 +81,9 @@ async function loadFileTree(path, retry = 3) {
 function renderTree(container, items, basePath) {
     container.innerHTML = "";
     const ul = document.createElement("ul");
-
-    // 返回上级
     if (basePath) {
         const backLi = document.createElement("li");
         backLi.innerHTML = "📁 ..";
-        backLi.title = "返回上级目录";
         backLi.onclick = () => loadFileTree(basePath.substring(0, basePath.lastIndexOf("/")));
         ul.appendChild(backLi);
     }
@@ -99,7 +91,6 @@ function renderTree(container, items, basePath) {
     const dirs = items.filter(i => i.type === "dir");
     const files = items.filter(i => i.type === "file");
 
-    // 目录
     for (const d of dirs) {
         const li = document.createElement("li");
         li.innerHTML = `📁 <span class="dir-label">${d.name}</span>`;
@@ -112,8 +103,6 @@ function renderTree(container, items, basePath) {
         };
         ul.appendChild(li);
     }
-
-    // 文件
     for (const f of files) {
         const li = document.createElement("li");
         li.innerHTML = `📄 ${f.name}`;
@@ -127,11 +116,9 @@ function renderTree(container, items, basePath) {
         };
         ul.appendChild(li);
     }
-
     container.appendChild(ul);
 }
 
-// 高亮选中的目录或文件
 function selectDir(element, path) {
     clearSelection();
     element.classList.add("selected");
@@ -139,6 +126,8 @@ function selectDir(element, path) {
     document.getElementById("btn-delete-dir").disabled = false;
     document.getElementById("btn-delete-file").disabled = true;
     document.getElementById("btn-save-file").disabled = true;
+    document.getElementById("btn-download-file").disabled = true;
+    document.getElementById("btn-download-folder").disabled = false;
     document.getElementById("current-file-path").textContent = path + '/';
     document.getElementById("file-content").value = "";
 }
@@ -148,13 +137,13 @@ function selectFile(element) {
     element.classList.add("selected");
     selectedDirPath = null;
     document.getElementById("btn-delete-dir").disabled = true;
+    document.getElementById("btn-download-folder").disabled = true;
 }
 
 function clearSelection() {
     document.querySelectorAll(".file-tree li.selected").forEach(li => li.classList.remove("selected"));
 }
 
-// ==================== 文件操作 ====================
 async function openFile(path, sha) {
     currentFilePath = path;
     currentFileSha = sha;
@@ -162,7 +151,8 @@ async function openFile(path, sha) {
     const textarea = document.getElementById("file-content");
     textarea.value = "加载中…";
     document.getElementById("btn-save-file").disabled = true;
-
+    document.getElementById("btn-delete-file").disabled = true;
+    document.getElementById("btn-download-file").disabled = true;
     try {
         const data = await githubGet(path);
         if (!data) throw new Error("文件不存在");
@@ -171,6 +161,7 @@ async function openFile(path, sha) {
         currentFileSha = data.sha;
         document.getElementById("btn-save-file").disabled = false;
         document.getElementById("btn-delete-file").disabled = false;
+        document.getElementById("btn-download-file").disabled = false;
     } catch (err) {
         textarea.value = "读取失败: " + err.message;
         showMessage("打开文件失败: " + err.message, "error");
@@ -185,7 +176,6 @@ async function saveFile() {
     try {
         await githubPut(currentFilePath, b64Content, `Update ${currentFilePath}`, token, currentFileSha);
         showMessage("保存成功", "success");
-        // 更新 sha
         const updated = await githubGet(currentFilePath);
         if (updated) currentFileSha = updated.sha;
     } catch (err) {
@@ -198,10 +188,8 @@ async function createNewFile() {
     if (!name) return;
     const path = currentPath ? currentPath + "/" + name : name;
     const token = getToken();
-
     try {
         if (name.endsWith('/')) {
-            // 创建目录：通过创建 .gitkeep 实现
             await githubPut(path + ".gitkeep", btoa(""), `Create directory ${path}`, token);
             showMessage("文件夹已创建", "success");
         } else {
@@ -226,13 +214,13 @@ async function deleteCurrentFile() {
         document.getElementById("current-file-path").textContent = "";
         document.getElementById("btn-save-file").disabled = true;
         document.getElementById("btn-delete-file").disabled = true;
+        document.getElementById("btn-download-file").disabled = true;
         loadFileTree(currentPath);
     } catch (err) {
         showMessage("删除失败: " + err.message, "error");
     }
 }
 
-// 删除选中文件夹（递归删除文件夹内所有文件）
 async function deleteSelectedFolder() {
     if (!selectedDirPath) return;
     if (!confirm(`⚠️ 确定要删除文件夹及其全部内容吗？\n${selectedDirPath}\n此操作不可恢复！`)) return;
@@ -242,13 +230,13 @@ async function deleteSelectedFolder() {
         showMessage("文件夹已删除", "success");
         selectedDirPath = null;
         document.getElementById("btn-delete-dir").disabled = true;
+        document.getElementById("btn-download-folder").disabled = true;
         loadFileTree(currentPath);
     } catch (err) {
         showMessage("删除文件夹失败: " + err.message, "error");
     }
 }
 
-// 递归删除文件夹下所有条目
 async function deleteFolderRecursive(dirPath, token) {
     const entries = await githubGet(dirPath);
     if (!entries || !Array.isArray(entries)) return;
@@ -260,11 +248,76 @@ async function deleteFolderRecursive(dirPath, token) {
             await githubDelete(entryPath, entry.sha, token);
         }
     }
-    // 注意：空目录无法直接删除，因为我们用 .gitkeep 占位，所以删除完文件后目录自动消失
-    // 但如果目录下没有 .gitkeep 也能删除目录本身？GitHub 不允许，但文件删完目录就没了
 }
 
-// ==================== 备份与安全下载 ====================
+// --- 下载当前文件 ---
+async function downloadCurrentFile() {
+    if (!currentFilePath) return;
+    try {
+        await downloadSingleFile(currentFilePath);
+        showMessage("文件下载已开始", "success");
+    } catch (err) {
+        showMessage("下载文件失败: " + err.message, "error");
+    }
+}
+
+// --- 下载选中的文件夹为 ZIP ---
+async function downloadSelectedFolder() {
+    if (!selectedDirPath) return;
+    try {
+        showMessage("正在打包文件夹，请稍候...", "info");
+        await downloadFolderAsZip(selectedDirPath);
+        showMessage("文件夹下载已开始", "success");
+    } catch (err) {
+        showMessage("下载文件夹失败: " + err.message, "error");
+    }
+}
+
+// --- 文件上传逻辑 ---
+async function handleFileUpload(e) {
+    const files = e.target.files;
+    if (files.length === 0) return;
+    const token = getToken();
+    const baseDir = currentPath || "";
+    try {
+        showMessage("正在上传文件...", "info");
+        for (const file of files) {
+            const fileB64 = await fileToBase64(file);
+            const remotePath = baseDir ? `${baseDir}/${file.name}` : file.name;
+            await githubPut(remotePath, fileB64, `Upload ${file.name}`, token);
+        }
+        showMessage("文件上传完成", "success");
+        loadFileTree(currentPath);
+    } catch (err) {
+        showMessage("文件上传失败: " + err.message, "error");
+    }
+    e.target.value = "";
+}
+
+// --- 文件夹上传（包含子目录） ---
+async function handleFolderUpload(e) {
+    const files = e.target.files;
+    if (files.length === 0) return;
+    const token = getToken();
+    const baseDir = currentPath || "";
+    try {
+        showMessage("正在上传文件夹...", "info");
+        for (const file of files) {
+            const fileB64 = await fileToBase64(file);
+            // webkitRelativePath 包含顶层目录名，例如 "myfolder/sub/file.txt"
+            const relativePath = file.webkitRelativePath || file.name;
+            const remotePath = baseDir ? `${baseDir}/${relativePath}` : relativePath;
+            await githubPut(remotePath, fileB64, `Upload ${relativePath}`, token);
+        }
+        showMessage("文件夹上传完成", "success");
+        loadFileTree(currentPath);
+    } catch (err) {
+        showMessage("文件夹上传失败: " + err.message, "error");
+    }
+    e.target.value = "";
+}
+
+// --- 仓库备份下载安全调用 ---
 async function downloadRepoZipSafe() {
     try {
         await downloadRepoZip();
@@ -274,9 +327,8 @@ async function downloadRepoZipSafe() {
     }
 }
 
-// ==================== 提交历史（不变，但加入错误重试） ====================
+// --- 提交历史与回滚（无变化） ---
 async function showCommitHistory() {
-    // ... 保持原有逻辑不变，仅加入 try/catch 友好提示
     const modal = document.createElement("div");
     modal.className = "preview-modal";
     modal.innerHTML = `
@@ -331,7 +383,6 @@ async function showCommitHistory() {
     }
 }
 
-// 回滚到指定 commit（与之前一致）
 async function rollbackTo(commitSha, token) {
     const commitUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/commits/${commitSha}`;
     const commitResp = await fetch(commitUrl, { headers: { Authorization: `token ${token}` } });
@@ -373,12 +424,9 @@ async function rollbackTo(commitSha, token) {
     if (!updateResp.ok) throw new Error("更新分支引用失败");
 }
 
-// ==================== 全屏编辑功能 ====================
 function toggleFullscreen() {
     const wrapper = document.querySelector(".editor-wrapper");
     const btn = document.getElementById("btn-fullscreen");
-    if (!wrapper || !btn) return;
-
     if (document.fullscreenElement) {
         document.exitFullscreen();
         btn.textContent = "⛶ 全屏";
@@ -387,14 +435,7 @@ function toggleFullscreen() {
         btn.textContent = "↩ 退出全屏";
     }
 }
-
-// 监听退出全屏（Esc 或按钮外退出）
 document.addEventListener("fullscreenchange", () => {
     const btn = document.getElementById("btn-fullscreen");
-    if (btn && !document.fullscreenElement) {
-        btn.textContent = "⛶ 全屏";
-    }
+    if (btn && !document.fullscreenElement) btn.textContent = "⛶ 全屏";
 });
-
-// 允许拖拽调整编辑框高度（附加功能：在 css 中增加 resize 提示，这里简单使用 textarea 拉伸）
-// CSS 中已设置 resize: none，如果想支持手动拖拽，可改为 vertical，但通常一个按钮足够。

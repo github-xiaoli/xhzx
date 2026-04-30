@@ -1,4 +1,3 @@
-// --- 配置 ---
 const GITHUB_OWNER = "github-xiaoli";
 const GITHUB_REPO = "xhzx";
 const API_BASE = "https://api.github.com";
@@ -19,7 +18,7 @@ function deleteCookie(name) {
     setCookie(name, "", -1);
 }
 
-// --- 认证相关 ---
+// --- 认证状态与跳转 ---
 function getToken() {
     return getCookie("github_token");
 }
@@ -49,7 +48,7 @@ function decodeBase64Content(base64content) {
     return new TextDecoder('utf-8').decode(bytes);
 }
 
-// --- GitHub API 封装（自动携带 token） ---
+// --- GitHub API 封装（自动携带 Token） ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const headers = {};
@@ -137,16 +136,27 @@ function fileToBase64(file) {
     });
 }
 
-// 下载 ZIP
+// --- 下载仓库 ZIP（修复重定向丢失认证） ---
 async function downloadRepoZip() {
     const token = getToken();
     if (!token) throw new Error("未登录");
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
     const resp = await fetch(url, {
-        headers: { "Authorization": `token ${token}` }
+        headers: { Authorization: `token ${token}` },
+        redirect: 'manual'           // 手动处理 302 重定向
     });
-    if (!resp.ok) throw new Error("下载失败");
-    const blob = await resp.blob();
+    let downloadUrl;
+    if (resp.status === 302) {
+        downloadUrl = resp.headers.get('Location');
+        if (!downloadUrl) throw new Error("获取下载地址失败");
+    } else if (resp.status === 200) {
+        downloadUrl = url;
+    } else {
+        throw new Error(`下载请求失败 (${resp.status})`);
+    }
+    const blobResp = await fetch(downloadUrl);
+    if (!blobResp.ok) throw new Error("下载文件失败");
+    const blob = await blobResp.blob();
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${GITHUB_REPO}_backup.zip`;
@@ -154,11 +164,66 @@ async function downloadRepoZip() {
     URL.revokeObjectURL(link.href);
 }
 
-// 获取用户信息（用于验证 token）
+// --- 下载单个文件（将 Base64 内容转为 Blob 下载） ---
+async function downloadSingleFile(filePath) {
+    const data = await githubGet(filePath);
+    if (!data) throw new Error("文件不存在");
+    // content 已经是 Base64
+    const byteChars = atob(data.content);
+    const bytes = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+        bytes[i] = byteChars.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = data.name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// --- 递归下载文件夹为 ZIP（依赖 JSZip 库） ---
+async function downloadFolderAsZip(folderPath) {
+    if (typeof JSZip === 'undefined') throw new Error("缺少 JSZip 库，无法打包文件夹");
+    const zip = new JSZip();
+    async function addToZip(dirPath, zipFolder) {
+        const entries = await githubGet(dirPath);
+        if (!entries || !Array.isArray(entries)) return;
+        for (const entry of entries) {
+            const fullPath = dirPath ? `${dirPath}/${entry.name}` : entry.name;
+            if (entry.type === 'file') {
+                const fileData = await githubGet(fullPath);
+                if (fileData) {
+                    const byteChars = atob(fileData.content);
+                    const bytes = new Uint8Array(byteChars.length);
+                    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+                    zipFolder.file(entry.name, bytes);
+                }
+            } else if (entry.type === 'dir') {
+                const subFolder = zipFolder.folder(entry.name);
+                if (subFolder) await addToZip(fullPath, subFolder);
+            }
+        }
+    }
+    const rootFolder = zip.folder(folderPath.split('/').pop() || 'root');
+    if (rootFolder) await addToZip(folderPath, rootFolder);
+    const blob = await zip.generateAsync({ type: "blob" });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = (folderPath.split('/').pop() || 'folder') + '.zip';
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// 验证 Token 有效性（备用）
 async function fetchUserInfo(token) {
-    const resp = await fetch(`${API_BASE}/user`, {
-        headers: { "Authorization": `token ${token}` }
-    });
-    if (!resp.ok) return null;
-    return await resp.json();
+    try {
+        const resp = await fetch(`${API_BASE}/user`, {
+            headers: { "Authorization": `token ${token}` }
+        });
+        if (!resp.ok) return null;
+        return await resp.json();
+    } catch (e) {
+        throw e;
+    }
 }

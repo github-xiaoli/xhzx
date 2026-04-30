@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>文件编辑器(手机) - 器材组</title>
+    <link rel="stylesheet" href="../css/phone.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 文件编辑器</h1>
+        <div id="editor-message" class="message"></div>
+        <div class="editor-toolbar">
+            <button id="btn-backup">⬇️ 备份</button>
+            <button id="btn-commits">📜 提交</button>
+            <button id="btn-new-file">➕ 新建</button>
+            <button id="btn-upload-file">📤 上传文件</button>
+            <button id="btn-upload-folder">📁 上传文件夹</button>
+            <button id="btn-download-file" disabled>⬇️ 文件</button>
+            <button id="btn-download-folder" disabled>🗂 文件夹</button>
+        </div>
+        <span class="file-path" id="current-file-path" style="word-break: break-all;"></span>
+        <div class="editor-wrapper">
+            <div class="file-tree" id="file-tree"></div>
+            <div class="editor-panel">
+                <textarea id="file-content" placeholder="选择文件..."></textarea>
+                <div class="editor-toolbar">
+                    <button id="btn-save-file" disabled style="width:auto;">💾 保存</button>
+                    <button id="btn-delete-file" class="delete-btn" disabled style="width:auto;">🗑 删除</button>
+                </div>
+            </div>
+        </div>
+        <input type="file" id="upload-file-input" class="hidden-input" multiple style="display:none;">
+        <input type="file" id="upload-folder-input" class="hidden-input" webkitdirectory multiple style="display:none;">
+        <p style="margin-top:15px;"><a href="backend.html">← 返回后台</a></p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/file_editor.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>后台管理(手机) - 器材组</title>
+    <link rel="stylesheet" href="../css/phone.css">
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ 后台管理</h1>
+        <div class="status-panel" id="auth-status">
+            <strong>认证状态：</strong><span id="auth-text">检查中…</span>
+            <button id="clear-auth-btn" style="display:none; width:auto;">清除认证</button>
+        </div>
+        <div class="dashboard-grid">
+            <a href="deduct.html" class="dashboard-card"><h3>⚡ 扣分操作</h3></a>
+            <a href="admin.html" class="dashboard-card"><h3>📋 分数管理</h3></a>
+            <a href="file_editor.html" class="dashboard-card"><h3>📁 文件编辑器</h3></a>
+            <a href="notice.html" class="dashboard-card"><h3>📢 帖子中心</h3></a>
+        </div>
+        <p style="margin-top:20px;"><a href="home.html">← 返回前台</a></p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script>
+        function updateAuthStatus() {
+            const token = getToken();
+            const adminId = getAdminId();
+            const textSpan = document.getElementById("auth-text");
+            const clearBtn = document.getElementById("clear-auth-btn");
+            if (token && adminId) {
+                textSpan.textContent = `已授权 (${adminId})`;
+                clearBtn.style.display = "inline-block";
+            } else {
+                textSpan.textContent = "未登录，即将跳转...";
+                clearBtn.style.display = "none";
+                setTimeout(() => { window.location.href = `login.html?redirect=backend.html`; }, 800);
+            }
+        }
+        document.getElementById("clear-auth-btn").addEventListener("click", () => { clearAuth(); updateAuthStatus(); });
+        updateAuthStatus();
+    </script>
+</body>
+</html>
