@@ -1,0 +1,1987 @@
+你需要接管这个AI项目，这是一个器材组智能扣分系统项目，目前存在的问题是
+1.文件管理界面：整个仓库的zip文件下载时提示请求错误，没有上传文件和文件夹功能，没有下载文件和文件夹功能
+2.整个网页不能做到全屏，显示只用了屏幕的一小部分，手机上显示异常，为了解决这个问题，你需要为这个网站单独做一个手机版和电脑版，电脑版请直接覆盖掉原来的文件，手机版请将手机版代码放在网站的/phone 文件夹下
+
+
+以下是为下一任 AI 准备的项目交接文档，包含了项目背景、运作方式、全部最新完整代码（含本次按钮调整）、已知问题和对继任者的要求。请直接复制此 Markdown 内容供后续开发使用。
+
+---
+
+# 器材组智能扣分与静态网站管理系统 - 最终交接文档
+
+## 一、项目简介
+
+**目标**：为静态器材组网站（GitHub 仓库 `github-xiaoli/xhzx`，部署于 Cloudflare Pages）开发一个功能完整的后台管理系统，支持：
+
+- 多管理员卡密认证（PBKDF2 + AES 加密，卡密即为解密 GitHub Token 的密码）
+- 成员扣分操作（含附件上传、分数更新、记录存储）
+- 扣分记录查询与删除（自动恢复分数）
+- 仓库文件在线编辑（文件树、代码编辑器、新建/删除文件/文件夹、下载 ZIP 备份、查看提交历史并回滚）
+- HTML 帖子发布系统（代码框 + 实时预览，允许执行 JavaScript）
+- 前端所有写操作通过 GitHub REST API 完成，使用管理员私有 Token 认证
+
+**技术栈**：纯静态前端（HTML + CSS + 原生 JS），解密使用浏览器 **Web Crypto API**（无外部加密库依赖），调用 GitHub API 读写仓库文件。部署后由 Cloudflare Pages 提供 HTTPS。
+
+**认证机制**：  
+- 每个管理员对应一个 `member/admin_info/{admin_id}/key` 文件，内容为 `iv:密文`。  
+- 管理员在登录页输入 ID 和卡密，前端用卡密通过 PBKDF2-SHA1（盐 `xhzx_salt`，迭代 1000 次）派生 AES-256 密钥，解密密文得到 GitHub Token。  
+- Token 存储在 Cookie（7 天有效），后续所有 API 请求自动携带。
+
+---
+
+## 二、文件结构与说明
+
+```
+仓库根目录/
+├── encrypt_keys.py              # 管理员本地工具：生成加密 token 文件
+├── css/
+│   └── style.css                # 全局样式（含文件编辑器、帖子等新增样式）
+├── js/
+│   ├── github.js                # 核心库：认证跳转、Cookie、API 封装、下载 ZIP
+│   ├── auth.js                  # 认证模块：Web Crypto 解密、登录、修改卡密
+│   ├── deduct.js                # 扣分页面逻辑
+│   ├── admin.js                 # 分数管理、记录查询、删除恢复
+│   ├── file_editor.js           # 文件编辑器（完整版，含删除文件夹、全屏）
+│   └── post.js                  # 帖子系统（代码框+预览）
+├── member/
+│   ├── admin_info/              # 管理员加密密钥文件目录
+│   │   └── {admin_id}/key       # 密文文件（手动放置）
+│   ├── login.html               # 统一登录页
+│   ├── home.html                # 前台主页（仅保留后台入口和帖子入口）
+│   ├── backend.html             # 后台主页（含认证状态、功能入口）
+│   ├── deduct.html              # 扣分操作页
+│   ├── admin.html               # 分数管理与记录查询页
+│   ├── file_editor.html         # 仓库文件编辑器
+│   ├── notice.html              # 帖子中心（列表、发布、编辑、查看）
+│   └── test_key.html            # 备用卡密测试页（可选）
+├── member/member_info/          # 成员信息目录（score.json 等）
+├── penalties/                   # 扣分记录 JSON 文件
+├── attachments/                 # 扣分附件
+└── posts/                       # 帖子 HTML 文件及 list.json 索引
+```
+
+---
+
+## 三、全部最终代码
+
+以下所有文件均为最新版本，已包含本次要求的导航按钮调整，**请直接复制替换**，切勿猜测未知信息。
+
+### 3.1 根目录工具 `encrypt_keys.py`
+
+```python
+import os
+import base64
+import hashlib
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+
+SALT = b"xhzx_salt"
+KEY_LENGTH = 32  # AES-256
+
+def derive_key(password: str) -> bytes:
+    return hashlib.pbkdf2_hmac('sha1', password.encode('utf-8'), SALT, 1000, dklen=KEY_LENGTH)
+
+def encrypt_token(plain_token: str, password: str) -> str:
+    key = derive_key(password)
+    iv = os.urandom(16)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    ct_bytes = cipher.encrypt(pad(plain_token.encode("utf-8"), AES.block_size))
+    iv_b64 = base64.b64encode(iv).decode("utf-8")
+    ct_b64 = base64.b64encode(ct_bytes).decode("utf-8")
+    return f"{iv_b64}:{ct_b64}"
+
+def main():
+    print("=== 管理员 GitHub Token 加密工具（兼容版） ===")
+    admin_id = input("管理员 ID: ").strip()
+    if not admin_id:
+        return
+    password = input("卡密（至少8位）: ").strip()
+    if len(password) < 8:
+        print("❌ 卡密太短")
+        return
+    token = input("明文 GitHub Token: ").strip()
+    if not token:
+        return
+
+    encrypted = encrypt_token(token, password)
+    key_dir = os.path.join("member", "admin_info", admin_id)
+    os.makedirs(key_dir, exist_ok=True)
+    filepath = os.path.join(key_dir, "key")
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(encrypted)
+
+    print(f"✔ 密文已写入 {filepath}")
+
+if __name__ == "__main__":
+    main()
+```
+
+### 3.2 `css/style.css`
+
+```css
+/* ===== 全局基础样式 ===== */
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    margin: 20px;
+    background: #f0f2f5;
+    color: #333;
+}
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+h1 { color: #1a1a1a; margin-top: 0; }
+h2 { color: #444; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: 600; }
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+button, .btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.2s;
+}
+button:hover, .btn:hover { background: #0056b3; }
+.message { padding: 12px; margin: 10px 0; border-radius: 6px; font-weight: 500; }
+.message.success { background: #d4edda; color: #155724; }
+.message.error { background: #f8d7da; color: #721c24; }
+.message.info { background: #d1ecf1; color: #0c5460; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
+th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+th { background: #f8f9fa; font-weight: 600; }
+a { color: #007bff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.form-inline { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+.form-inline input { flex: 1; }
+.error { color: #d32f2f; }
+
+/* 附件预览 */
+.attach-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.attach-item { display: flex; flex-direction: column; align-items: center; max-width: 120px; text-align: center; }
+.attach-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; }
+.attach-name { font-size: 11px; word-break: break-all; }
+.preview-link { font-size: 12px; }
+
+/* 模态窗 */
+.preview-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.preview-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
+.preview-content { position: relative; max-width: 90%; max-height: 90%; background: white; padding: 10px; border-radius: 8px; overflow: auto; }
+.preview-close { position: absolute; top: 5px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer; color: #333; }
+
+/* 删除按钮 */
+.delete-btn { background: #dc3545; margin-left: 5px; }
+.delete-btn:hover { background: #b02a37; }
+
+/* 登录页 */
+.login-container {
+    max-width: 400px;
+    margin: 80px auto;
+}
+.login-container h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.login-container .form-group {
+    margin-bottom: 20px;
+}
+.login-container button {
+    width: 100%;
+    padding: 12px;
+}
+.alt-link {
+    text-align: center;
+    margin-top: 15px;
+}
+
+/* 文件编辑器 */
+.editor-wrapper {
+    display: flex;
+    height: calc(100vh - 160px);
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.file-tree {
+    width: 260px;
+    background: #fafafa;
+    border-right: 1px solid #ddd;
+    overflow-y: auto;
+    padding: 10px;
+}
+.file-tree ul {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0;
+}
+.file-tree li {
+    margin: 2px 0;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    user-select: none;
+}
+.file-tree li:hover {
+    background: #e6f0ff;
+}
+.file-tree li.selected {
+    background: #cce5ff;
+    font-weight: bold;
+}
+.file-tree .dir-label {
+    font-weight: 600;
+    color: #444;
+}
+.file-tree .file-icon {
+    margin-right: 6px;
+    color: #007bff;
+}
+.editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+.editor-toolbar button {
+    padding: 6px 14px;
+    font-size: 14px;
+}
+.editor-toolbar .file-path {
+    font-family: monospace;
+    color: #888;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.editor-area {
+    flex: 1;
+    display: flex;
+    border: none;
+}
+.editor-area textarea {
+    flex: 1;
+    border: none;
+    padding: 15px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    background: #fff;
+    color: #222;
+}
+.commit-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fff;
+}
+.commit-item {
+    border-bottom: 1px solid #eee;
+    padding: 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.commit-item:last-child { border-bottom: none; }
+.commit-message { font-weight: 500; }
+.commit-date { font-size: 12px; color: #888; }
+
+/* 帖子系统 */
+.post-list {
+    margin-top: 20px;
+}
+.post-item {
+    background: #f9f9f9;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.post-item .post-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #007bff;
+    cursor: pointer;
+}
+.post-meta {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+.post-actions button {
+    margin-left: 6px;
+    font-size: 13px;
+    padding: 4px 12px;
+}
+#post-code {
+    width: 100%;
+    height: 300px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    resize: vertical;
+    box-sizing: border-box;
+    background: #fafafa;
+    color: #222;
+    line-height: 1.5;
+}
+.preview-container {
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+.preview-container iframe {
+    width: 100%;
+    height: 300px;
+    border: none;
+    background: white;
+}
+.toolbar-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    align-items: center;
+}
+```
+
+### 3.3 `js/github.js` （核心认证与 API 封装）
+
+```javascript
+const GITHUB_OWNER = "github-xiaoli";
+const GITHUB_REPO = "xhzx";
+const API_BASE = "https://api.github.com";
+
+// --- Cookie 工具 ---
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+function setCookie(name, value, days) {
+    const d = new Date();
+    d.setTime(d.getTime() + days * 86400000);
+    document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax`;
+}
+function deleteCookie(name) {
+    setCookie(name, "", -1);
+}
+
+// --- 认证状态与跳转 ---
+function getToken() {
+    return getCookie("github_token");
+}
+function getAdminId() {
+    return getCookie("admin_id");
+}
+function requireAuth() {
+    if (!getToken() || !getAdminId()) {
+        const currentPage = window.location.pathname.split('/').pop();
+        window.location.href = `login.html?redirect=${encodeURIComponent(currentPage)}`;
+        return false;
+    }
+    return true;
+}
+function clearAuth() {
+    deleteCookie("github_token");
+    deleteCookie("admin_id");
+}
+
+// --- Base64 解码（UTF-8） ---
+function decodeBase64Content(base64content) {
+    const binary = atob(base64content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+}
+
+// --- GitHub API 封装（自动携带 Token） ---
+async function githubGet(path) {
+    const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
+    const headers = {};
+    const token = getToken();
+    if (token) headers["Authorization"] = `token ${token}`;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+        if (resp.status === 403 || resp.status === 429) {
+            const errData = await resp.json().catch(() => ({}));
+            if (errData.message && errData.message.includes("rate limit")) {
+                throw new Error("API 速率限制已耗尽，请稍后再试。");
+            }
+            throw new Error(`请求失败 (${resp.status}): 权限不足或触发限制`);
+        }
+        if (resp.status === 404) return null;
+        throw new Error(`读取 ${path} 失败 (${resp.status})`);
+    }
+    return await resp.json();
+}
+
+async function githubPut(path, contentBase64, message, token, sha = null) {
+    const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
+    const body = { message, content: contentBase64, branch: "main" };
+    if (sha) body.sha = sha;
+    const resp = await fetch(url, {
+        method: "PUT",
+        headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(`写入 ${path} 失败 (${resp.status}): ${err.message || ''}`);
+    }
+    return await resp.json();
+}
+
+async function githubDelete(path, sha, token) {
+    const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
+    const resp = await fetch(url, {
+        method: "DELETE",
+        headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message: `Delete ${path}`, sha, branch: "main" })
+    });
+    if (!resp.ok) throw new Error(`删除 ${path} 失败 (${resp.status})`);
+    return await resp.json();
+}
+
+async function listDirectories(path) {
+    const data = await githubGet(path);
+    if (!data || !Array.isArray(data)) return [];
+    return data.filter(item => item.type === "dir").map(item => item.name);
+}
+
+async function listFiles(path) {
+    const data = await githubGet(path);
+    if (!data || !Array.isArray(data)) return [];
+    return data.filter(item => item.type === "file").map(item => item.name);
+}
+
+function generateTimestamp() {
+    const now = new Date();
+    return (
+        now.getUTCFullYear() +
+        String(now.getUTCMonth() + 1).padStart(2, '0') +
+        String(now.getUTCDate()).padStart(2, '0') +
+        String(now.getUTCHours()).padStart(2, '0') +
+        String(now.getUTCMinutes()).padStart(2, '0') +
+        String(now.getUTCSeconds()).padStart(2, '0') +
+        String(now.getUTCMilliseconds()).padStart(3, '0')
+    );
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// 下载 ZIP
+async function downloadRepoZip() {
+    const token = getToken();
+    if (!token) throw new Error("未登录");
+    const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
+    const resp = await fetch(url, {
+        headers: { "Authorization": `token ${token}` }
+    });
+    if (!resp.ok) throw new Error("下载失败");
+    const blob = await resp.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${GITHUB_REPO}_backup.zip`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// 验证 Token 有效性（备用）
+async function fetchUserInfo(token) {
+    try {
+        const resp = await fetch(`${API_BASE}/user`, {
+            headers: { "Authorization": `token ${token}` }
+        });
+        if (!resp.ok) return null;
+        return await resp.json();
+    } catch (e) {
+        throw e;
+    }
+}
+```
+
+### 3.4 `js/auth.js` （Web Crypto 解密、登录、修改卡密）
+
+```javascript
+// ===================== 认证与解密模块 =====================
+// 使用浏览器原生 Web Crypto API，与 Python hashlib 完全等价
+
+function base64ToArrayBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+function stringToUint8Array(str) {
+    return new TextEncoder().encode(str);
+}
+
+// PBKDF2 派生密钥（SHA‑1、1000次、256 位）
+async function deriveKeyWebCrypto(password) {
+    const passwordBuffer = stringToUint8Array(password);
+    const salt = stringToUint8Array("xhzx_salt");
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw", passwordBuffer, "PBKDF2", false, ["deriveBits"]
+    );
+    const derivedBits = await crypto.subtle.deriveBits(
+        {
+            name: "PBKDF2",
+            salt: salt,
+            iterations: 1000,
+            hash: "SHA-1"
+        },
+        keyMaterial,
+        256
+    );
+    return await crypto.subtle.importKey(
+        "raw", derivedBits, "AES-CBC", false, ["decrypt", "encrypt"]
+    );
+}
+
+async function decryptWithWebCrypto(key, ivB64, ctB64) {
+    const iv = base64ToArrayBuffer(ivB64);
+    const ct = base64ToArrayBuffer(ctB64);
+    const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-CBC", iv: iv },
+        key,
+        ct
+    );
+    return new TextDecoder().decode(decrypted);
+}
+
+async function encryptWithWebCrypto(key, plaintext) {
+    const iv = crypto.getRandomValues(new Uint8Array(16));
+    const data = new TextEncoder().encode(plaintext);
+    const encrypted = await crypto.subtle.encrypt(
+        { name: "AES-CBC", iv: iv },
+        key,
+        data
+    );
+    const ivB64 = btoa(String.fromCharCode(...iv));
+    const ctB64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+    return `${ivB64}:${ctB64}`;
+}
+
+/**
+ * 解密 token
+ */
+async function decryptTokenWithPassword(encrypted, password) {
+    const trimmed = encrypted.trim();
+    const parts = trimmed.split(":");
+    if (parts.length !== 2) throw new Error("密文格式错误");
+    const key = await deriveKeyWebCrypto(password);
+    const token = await decryptWithWebCrypto(key, parts[0], parts[1]);
+    if (!token || token.length === 0) throw new Error("解密结果为空，卡密可能错误");
+    return token;
+}
+
+/**
+ * 登录流程
+ */
+async function performLogin(adminId, password, redirectPage) {
+    const resp = await fetch(`/member/admin_info/${adminId}/key`);
+    if (!resp.ok) throw new Error("管理员 ID 不存在或无 key 文件");
+    const encrypted = await resp.text();
+
+    const token = await decryptTokenWithPassword(encrypted, password);
+
+    // 验证 token（失败不阻断）
+    try { await fetchUserInfo(token); } catch (e) { console.warn("Token 验证跳过", e); }
+
+    setCookie("github_token", token, 7);
+    setCookie("admin_id", adminId, 7);
+    window.location.href = redirectPage || "backend.html";
+}
+
+/**
+ * 修改卡密
+ */
+async function changePassword(adminId, oldPassword, newPassword) {
+    const resp = await fetch(`/member/admin_info/${adminId}/key`);
+    if (!resp.ok) throw new Error("无法读取 key 文件");
+    const encrypted = await resp.text();
+
+    const token = await decryptTokenWithPassword(encrypted, oldPassword);
+    const key = await deriveKeyWebCrypto(newPassword);
+    const newEncrypted = await encryptWithWebCrypto(key, token);
+
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("登录已过期");
+
+    const b64Content = btoa(unescape(encodeURIComponent(newEncrypted)));
+    const existing = await githubGet(`member/admin_info/${adminId}/key`);
+    await githubPut(`member/admin_info/${adminId}/key`, b64Content, `Change password for admin ${adminId}`, currentToken, existing ? existing.sha : null);
+    return true;
+}
+```
+
+### 3.5 `js/deduct.js` （扣分逻辑，已强制登录）
+
+```javascript
+document.addEventListener("DOMContentLoaded", () => {
+    if (!requireAuth()) return;
+
+    const form = document.getElementById("deduct-form");
+    const msgBox = document.getElementById("message");
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        msgBox.textContent = "";
+
+        const studentId = document.getElementById("student_id").value.trim();
+        const pointsInput = document.getElementById("points").value.trim();
+        const reason = document.getElementById("reason").value.trim();
+        const files = document.getElementById("attachments").files;
+
+        if (!studentId || !pointsInput || !reason) {
+            return showMessage("请填写所有必填字段", "error");
+        }
+        const points = parseInt(pointsInput, 10);
+        if (isNaN(points) || points <= 0) {
+            return showMessage("分数必须为正整数", "error");
+        }
+
+        try {
+            const token = getToken();
+            const adminId = getAdminId();
+            const ts = generateTimestamp();
+            const attachmentPaths = [];
+            const uploadedShas = [];
+
+            if (files.length > 0) {
+                showMessage("正在上传附件...", "info");
+                for (const file of files) {
+                    const fileB64 = await fileToBase64(file);
+                    const filePath = `attachments/${ts}_${studentId}/${file.name}`;
+                    try {
+                        const result = await githubPut(filePath, fileB64, `Upload attachment for penalty ${ts}`, token);
+                        attachmentPaths.push(filePath);
+                        uploadedShas.push({ path: filePath, sha: result.content.sha });
+                    } catch (err) {
+                        showMessage(`附件上传失败: ${err.message}，正在回滚...`, "error");
+                        for (const item of uploadedShas) {
+                            await githubDelete(item.path, item.sha, token).catch(() => {});
+                        }
+                        throw new Error("附件上传失败，已回滚");
+                    }
+                }
+            }
+
+            showMessage("正在更新分数...", "info");
+            const scorePath = `member/member_info/${studentId}/score.json`;
+            let currentScore = 0;
+            let scoreSha = null;
+            const scoreData = await githubGet(scorePath);
+            if (scoreData) {
+                const jsonStr = decodeBase64Content(scoreData.content);
+                currentScore = JSON.parse(jsonStr).score || 0;
+                scoreSha = scoreData.sha;
+            }
+            const newScore = currentScore - points;
+            const scoreContent = JSON.stringify({ score: newScore }, null, 2);
+            const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
+
+            try {
+                await githubPut(scorePath, scoreB64, `Update score for ${studentId}`, token, scoreSha);
+            } catch (err) {
+                showMessage(`分数更新失败: ${err.message}，回滚附件...`, "error");
+                for (const item of uploadedShas) {
+                    await githubDelete(item.path, item.sha, token).catch(() => {});
+                }
+                throw new Error("扣分失败：分数更新出错，已回滚附件");
+            }
+
+            showMessage("正在创建扣分记录...", "info");
+            const record = {
+                id: `${ts}_${studentId}`,
+                student_id: studentId,
+                points: points,
+                reason: reason,
+                attachments: attachmentPaths,
+                timestamp: new Date().toISOString(),
+                operator: adminId
+            };
+            const penaltyPath = `penalties/penalty_${ts}_${studentId}.json`;
+            const penaltyB64 = btoa(unescape(encodeURIComponent(JSON.stringify(record, null, 2))));
+
+            try {
+                await githubPut(penaltyPath, penaltyB64, `Create penalty for ${studentId}`, token);
+            } catch (err) {
+                showMessage(`扣分记录创建失败: ${err.message}，正在回滚...`, "error");
+                const rollbackB64 = btoa(unescape(encodeURIComponent(JSON.stringify({ score: currentScore }))));
+                await githubPut(scorePath, rollbackB64, `Rollback score for ${studentId}`, token, scoreSha).catch(() => {});
+                for (const item of uploadedShas) {
+                    await githubDelete(item.path, item.sha, token).catch(() => {});
+                }
+                throw new Error("扣分失败：记录创建出错，已回滚分数和附件");
+            }
+
+            showMessage(`✓ 扣分成功！${studentId} 被扣 ${points} 分，当前分数 ${newScore}`, "success");
+            form.reset();
+        } catch (err) {
+            showMessage(`操作失败: ${err.message}`, "error");
+        }
+    });
+
+    function showMessage(msg, type) {
+        msgBox.textContent = msg;
+        msgBox.className = `message ${type}`;
+    }
+});
+```
+
+### 3.6 `js/admin.js` （分数管理，完整版）
+
+```javascript
+document.addEventListener("DOMContentLoaded", () => {
+    if (!requireAuth()) return;
+
+    loadScoreList();
+    document.getElementById("query-btn").addEventListener("click", queryHandler);
+});
+
+// --- 成员分数列表 ---
+async function loadScoreList() {
+    const tbody = document.getElementById("score-table-body");
+    tbody.innerHTML = "<tr><td colspan='2'>加载中…</td></tr>";
+    try {
+        const dirs = await listDirectories("member/member_info");
+        if (dirs.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='2'>暂无成员数据</td></tr>";
+            return;
+        }
+        const scores = [];
+        for (const d of dirs) {
+            let score = 0;
+            const data = await githubGet(`member/member_info/${d}/score.json`);
+            if (data) {
+                const jsonStr = decodeBase64Content(data.content);
+                score = JSON.parse(jsonStr).score;
+            }
+            scores.push({ id: d, score });
+        }
+        scores.sort((a, b) => a.id.localeCompare(b.id));
+        tbody.innerHTML = scores.map(s => `<tr><td>${s.id}</td><td>${s.score}</td></tr>`).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan='2' class="error">加载失败: ${err.message}</td></tr>`;
+    }
+}
+
+// --- 扣分记录查询 ---
+async function queryHandler() {
+    const sid = document.getElementById("query-student-id").value.trim();
+    const resultDiv = document.getElementById("query-result");
+    if (!sid) {
+        resultDiv.innerHTML = "<p>请输入学号</p>";
+        return;
+    }
+    resultDiv.innerHTML = "<p>查询中…</p>";
+    try {
+        const records = await queryPenaltyRecords(sid);
+        if (records.length === 0) {
+            resultDiv.innerHTML = "<p>未找到该学号的扣分记录。</p>";
+            return;
+        }
+        let html = `<table id="penalty-table">
+            <thead><tr><th>时间</th><th>分数</th><th>理由</th><th>附件</th><th>操作</th><th>操作人</th></tr></thead><tbody>`;
+        for (const rec of records) {
+            const attachCell = renderAttachments(rec.attachments);
+            html += `<tr id="row-${rec.id}">
+                <td>${new Date(rec.timestamp).toLocaleString()}</td>
+                <td>${rec.points}</td>
+                <td>${rec.reason}</td>
+                <td>${attachCell}</td>
+                <td><button class="delete-btn" data-id="${rec.id}" data-sid="${rec.student_id}" data-points="${rec.points}">🗑 删除</button></td>
+                <td>${rec.operator || '未知'}</td>
+            </tr>`;
+        }
+        html += "</tbody></table>";
+        resultDiv.innerHTML = html;
+
+        document.querySelectorAll(".delete-btn").forEach(btn => {
+            btn.addEventListener("click", onDeleteRecord);
+        });
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">查询失败: ${err.message}</p>`;
+    }
+}
+
+async function queryPenaltyRecords(sid) {
+    const files = await listFiles("penalties");
+    const matches = files.filter(f => f.includes(`_${sid}.json`));
+    const records = [];
+    for (const f of matches) {
+        const data = await githubGet(`penalties/${f}`);
+        if (data) {
+            const jsonStr = decodeBase64Content(data.content);
+            records.push(JSON.parse(jsonStr));
+        }
+    }
+    records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return records;
+}
+
+function renderAttachments(attachments) {
+    if (!attachments || attachments.length === 0) return "无";
+    let html = "<div class='attach-list'>";
+    attachments.forEach(path => {
+        const parts = path.split('/');
+        const filename = parts.pop();
+        const safeFilename = encodeURIComponent(filename);
+        const safePath = parts.join('/') + '/' + safeFilename;
+        const siteUrl = '/' + safePath;
+
+        const ext = filename.split('.').pop().toLowerCase();
+        if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) {
+            html += `<div class="attach-item">
+                <a href="${siteUrl}" target="_blank"><img src="${siteUrl}" class="attach-thumb" loading="lazy" alt="${filename}"></a>
+                <span class="attach-name">${filename}</span>
+                <a href="${siteUrl}" target="_blank" class="preview-link">[原图]</a>
+            </div>`;
+        } else if (ext === 'pdf') {
+            html += `<div class="attach-item">
+                <span class="attach-name">${filename}</span>
+                <a href="${siteUrl}" target="_blank" class="preview-link">[打开PDF]</a>
+                <button class="preview-btn" data-url="${siteUrl}" data-type="pdf">预览</button>
+            </div>`;
+        } else {
+            html += `<div class="attach-item">
+                <span class="attach-name">${filename}</span>
+                <a href="${siteUrl}" target="_blank" class="preview-link">[下载]</a>
+            </div>`;
+        }
+    });
+    html += "</div>";
+    return html;
+}
+
+document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("preview-btn")) {
+        const url = e.target.dataset.url;
+        const type = e.target.dataset.type;
+        showPreview(url, type);
+    }
+});
+
+function showPreview(url, type) {
+    const modal = document.createElement("div");
+    modal.className = "preview-modal";
+    modal.innerHTML = `
+        <div class="preview-backdrop"></div>
+        <div class="preview-content">
+            <span class="preview-close">&times;</span>
+            ${type === 'pdf' 
+                ? `<iframe src="${url}" width="100%" height="600px"></iframe>` 
+                : `<img src="${url}" style="max-width:100%; max-height:80vh;">`}
+        </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector(".preview-close").onclick = () => modal.remove();
+    modal.querySelector(".preview-backdrop").onclick = () => modal.remove();
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") modal.remove();
+    }, { once: true });
+}
+
+async function onDeleteRecord(e) {
+    const btn = e.currentTarget;
+    const id = btn.dataset.id;
+    const sid = btn.dataset.sid;
+    const points = parseInt(btn.dataset.points, 10);
+
+    if (!confirm(`确定要删除该扣分记录吗？\n学号: ${sid}\n分数: ${points} 分\n删除后将自动恢复分数。`)) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "删除中…";
+    try {
+        const token = getToken();
+        const penaltyPath = `penalties/penalty_${id}.json`;
+        const fileData = await githubGet(penaltyPath);
+        if (!fileData) throw new Error("记录文件不存在");
+        await githubDelete(penaltyPath, fileData.sha, token);
+
+        const scorePath = `member/member_info/${sid}/score.json`;
+        const scoreData = await githubGet(scorePath);
+        let currentScore = 0;
+        let scoreSha = null;
+        if (scoreData) {
+            const jsonStr = decodeBase64Content(scoreData.content);
+            currentScore = JSON.parse(jsonStr).score;
+            scoreSha = scoreData.sha;
+        }
+        const newScore = currentScore + points;
+        const scoreContent = JSON.stringify({ score: newScore }, null, 2);
+        const scoreB64 = btoa(unescape(encodeURIComponent(scoreContent)));
+        await githubPut(scorePath, scoreB64, `Recover score for ${sid} after delete penalty ${id}`, token, scoreSha);
+
+        try {
+            const attachDir = `attachments/${id}`;
+            const attachFiles = await listFiles(attachDir);
+            for (const f of attachFiles) {
+                const fData = await githubGet(`${attachDir}/${f}`);
+                if (fData) await githubDelete(`${attachDir}/${f}`, fData.sha, token).catch(() => {});
+            }
+        } catch (_) { }
+
+        document.getElementById(`row-${id}`).remove();
+        alert("删除成功，分数已恢复。");
+        loadScoreList();
+    } catch (err) {
+        alert("删除失败: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "🗑 删除";
+    }
+}
+```
+
+### 3.7 `js/file_editor.js` （完整版，支持删除文件夹、全屏）
+
+```javascript
+let currentPath = "";
+let currentFilePath = null;
+let currentFileSha = null;
+let selectedDirPath = null;
+
+document.addEventListener("DOMContentLoaded", async () => {
+    if (!requireAuth()) return;
+
+    document.getElementById("btn-backup").addEventListener("click", downloadRepoZipSafe);
+    document.getElementById("btn-commits").addEventListener("click", showCommitHistory);
+    document.getElementById("btn-save-file").addEventListener("click", saveFile);
+    document.getElementById("btn-new-file").addEventListener("click", createNewFile);
+    document.getElementById("btn-delete-file").addEventListener("click", deleteCurrentFile);
+
+    addToolbarButtons();
+    loadFileTree("");
+});
+
+function addToolbarButtons() {
+    const toolbar = document.querySelector(".editor-toolbar");
+    if (!toolbar) return;
+
+    // 全屏按钮
+    const fullBtn = document.createElement("button");
+    fullBtn.id = "btn-fullscreen";
+    fullBtn.title = "全屏编辑";
+    fullBtn.textContent = "⛶ 全屏";
+    fullBtn.addEventListener("click", toggleFullscreen);
+    toolbar.appendChild(fullBtn);
+
+    // 删除文件夹按钮
+    const delDirBtn = document.createElement("button");
+    delDirBtn.id = "btn-delete-dir";
+    delDirBtn.className = "delete-btn";
+    delDirBtn.title = "删除选中的文件夹";
+    delDirBtn.textContent = "🗑 删除文件夹";
+    delDirBtn.disabled = true;
+    delDirBtn.addEventListener("click", deleteSelectedFolder);
+    toolbar.appendChild(delDirBtn);
+}
+
+function showMessage(msg, type) {
+    const box = document.getElementById("editor-message");
+    if (box) {
+        box.textContent = msg;
+        box.className = "message " + type;
+    }
+}
+
+async function loadFileTree(path, retry = 3) {
+    currentPath = path;
+    const treeEl = document.getElementById("file-tree");
+    treeEl.innerHTML = "<p>加载中…</p>";
+
+    for (let attempt = 0; attempt < retry; attempt++) {
+        try {
+            const data = await githubGet(path);
+            if (!data || !Array.isArray(data)) {
+                treeEl.innerHTML = "<p>目录为空</p>";
+                return;
+            }
+            renderTree(treeEl, data, path);
+            return;
+        } catch (err) {
+            if (attempt === retry - 1) {
+                treeEl.innerHTML = `<p class="error">加载失败（已重试${retry}次）: ${err.message}</p>`;
+                showMessage("目录加载失败", "error");
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    }
+}
+
+function renderTree(container, items, basePath) {
+    container.innerHTML = "";
+    const ul = document.createElement("ul");
+    if (basePath) {
+        const backLi = document.createElement("li");
+        backLi.innerHTML = "📁 ..";
+        backLi.onclick = () => loadFileTree(basePath.substring(0, basePath.lastIndexOf("/")));
+        ul.appendChild(backLi);
+    }
+
+    const dirs = items.filter(i => i.type === "dir");
+    const files = items.filter(i => i.type === "file");
+
+    for (const d of dirs) {
+        const li = document.createElement("li");
+        li.innerHTML = `📁 <span class="dir-label">${d.name}</span>`;
+        li.dataset.type = "dir";
+        li.dataset.path = basePath ? basePath + "/" + d.name : d.name;
+        li.onclick = (e) => {
+            e.stopPropagation();
+            selectDir(li, li.dataset.path);
+            loadFileTree(li.dataset.path);
+        };
+        ul.appendChild(li);
+    }
+    for (const f of files) {
+        const li = document.createElement("li");
+        li.innerHTML = `📄 ${f.name}`;
+        li.dataset.type = "file";
+        li.dataset.path = basePath ? basePath + "/" + f.name : f.name;
+        li.dataset.sha = f.sha;
+        li.onclick = (e) => {
+            e.stopPropagation();
+            selectFile(li);
+            openFile(li.dataset.path, f.sha);
+        };
+        ul.appendChild(li);
+    }
+    container.appendChild(ul);
+}
+
+function selectDir(element, path) {
+    clearSelection();
+    element.classList.add("selected");
+    selectedDirPath = path;
+    document.getElementById("btn-delete-dir").disabled = false;
+    document.getElementById("btn-delete-file").disabled = true;
+    document.getElementById("btn-save-file").disabled = true;
+    document.getElementById("current-file-path").textContent = path + '/';
+    document.getElementById("file-content").value = "";
+}
+
+function selectFile(element) {
+    clearSelection();
+    element.classList.add("selected");
+    selectedDirPath = null;
+    document.getElementById("btn-delete-dir").disabled = true;
+}
+
+function clearSelection() {
+    document.querySelectorAll(".file-tree li.selected").forEach(li => li.classList.remove("selected"));
+}
+
+async function openFile(path, sha) {
+    currentFilePath = path;
+    currentFileSha = sha;
+    document.getElementById("current-file-path").textContent = path;
+    const textarea = document.getElementById("file-content");
+    textarea.value = "加载中…";
+    document.getElementById("btn-save-file").disabled = true;
+    try {
+        const data = await githubGet(path);
+        if (!data) throw new Error("文件不存在");
+        const content = decodeBase64Content(data.content);
+        textarea.value = content;
+        currentFileSha = data.sha;
+        document.getElementById("btn-save-file").disabled = false;
+        document.getElementById("btn-delete-file").disabled = false;
+    } catch (err) {
+        textarea.value = "读取失败: " + err.message;
+        showMessage("打开文件失败: " + err.message, "error");
+    }
+}
+
+async function saveFile() {
+    if (!currentFilePath) return;
+    const token = getToken();
+    const newContent = document.getElementById("file-content").value;
+    const b64Content = btoa(unescape(encodeURIComponent(newContent)));
+    try {
+        await githubPut(currentFilePath, b64Content, `Update ${currentFilePath}`, token, currentFileSha);
+        showMessage("保存成功", "success");
+        const updated = await githubGet(currentFilePath);
+        if (updated) currentFileSha = updated.sha;
+    } catch (err) {
+        showMessage("保存失败: " + err.message, "error");
+    }
+}
+
+async function createNewFile() {
+    const name = prompt("请输入名称（如 file.txt 或 newfolder/）：");
+    if (!name) return;
+    const path = currentPath ? currentPath + "/" + name : name;
+    const token = getToken();
+    try {
+        if (name.endsWith('/')) {
+            await githubPut(path + ".gitkeep", btoa(""), `Create directory ${path}`, token);
+            showMessage("文件夹已创建", "success");
+        } else {
+            await githubPut(path, btoa(""), `Create file ${path}`, token);
+            showMessage("文件已创建", "success");
+        }
+        loadFileTree(currentPath);
+    } catch (err) {
+        showMessage("创建失败: " + err.message, "error");
+    }
+}
+
+async function deleteCurrentFile() {
+    if (!currentFilePath) return;
+    if (!confirm(`确定要删除文件 ${currentFilePath} 吗？此操作不可恢复！`)) return;
+    const token = getToken();
+    try {
+        await githubDelete(currentFilePath, currentFileSha, token);
+        showMessage("文件已删除", "success");
+        currentFilePath = null;
+        document.getElementById("file-content").value = "";
+        document.getElementById("current-file-path").textContent = "";
+        document.getElementById("btn-save-file").disabled = true;
+        document.getElementById("btn-delete-file").disabled = true;
+        loadFileTree(currentPath);
+    } catch (err) {
+        showMessage("删除失败: " + err.message, "error");
+    }
+}
+
+async function deleteSelectedFolder() {
+    if (!selectedDirPath) return;
+    if (!confirm(`⚠️ 确定要删除文件夹及其全部内容吗？\n${selectedDirPath}\n此操作不可恢复！`)) return;
+    const token = getToken();
+    try {
+        await deleteFolderRecursive(selectedDirPath, token);
+        showMessage("文件夹已删除", "success");
+        selectedDirPath = null;
+        document.getElementById("btn-delete-dir").disabled = true;
+        loadFileTree(currentPath);
+    } catch (err) {
+        showMessage("删除文件夹失败: " + err.message, "error");
+    }
+}
+
+async function deleteFolderRecursive(dirPath, token) {
+    const entries = await githubGet(dirPath);
+    if (!entries || !Array.isArray(entries)) return;
+    for (const entry of entries) {
+        const entryPath = dirPath + "/" + entry.name;
+        if (entry.type === "dir") {
+            await deleteFolderRecursive(entryPath, token);
+        } else {
+            await githubDelete(entryPath, entry.sha, token);
+        }
+    }
+}
+
+async function downloadRepoZipSafe() {
+    try {
+        await downloadRepoZip();
+        showMessage("备份下载已开始", "success");
+    } catch (err) {
+        showMessage("下载失败: " + err.message, "error");
+    }
+}
+
+async function showCommitHistory() {
+    const modal = document.createElement("div");
+    modal.className = "preview-modal";
+    modal.innerHTML = `
+        <div class="preview-backdrop"></div>
+        <div class="preview-content" style="max-width: 700px; padding: 20px;">
+            <span class="preview-close">&times;</span>
+            <h2>提交历史</h2>
+            <div id="commit-list" class="commit-list">加载中...</div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    modal.querySelector(".preview-close").onclick = closeModal;
+    modal.querySelector(".preview-backdrop").onclick = closeModal;
+
+    try {
+        const token = getToken();
+        const resp = await fetch(`${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?per_page=30`, {
+            headers: { Authorization: `token ${token}` }
+        });
+        if (!resp.ok) throw new Error("获取提交历史失败");
+        const commits = await resp.json();
+        const listEl = document.getElementById("commit-list");
+        listEl.innerHTML = commits.map(c => `
+            <div class="commit-item">
+                <div>
+                    <div class="commit-message">${c.commit.message.split('\n')[0]}</div>
+                    <div class="commit-date">${new Date(c.commit.author.date).toLocaleString()}</div>
+                </div>
+                <button class="btn" data-sha="${c.sha}">回滚至此</button>
+            </div>
+        `).join('');
+
+        listEl.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener("click", async () => {
+                if (!confirm("此操作将撤销所有后续提交，确定回滚吗？")) return;
+                btn.disabled = true;
+                btn.textContent = "回滚中…";
+                try {
+                    await rollbackTo(btn.dataset.sha, token);
+                    alert("回滚成功！页面即将刷新。");
+                    window.location.reload();
+                } catch (err) {
+                    alert("回滚失败: " + err.message);
+                    btn.disabled = false;
+                    btn.textContent = "回滚至此";
+                }
+            });
+        });
+    } catch (err) {
+        document.getElementById("commit-list").innerHTML = `<p class="error">错误: ${err.message}</p>`;
+    }
+}
+
+async function rollbackTo(commitSha, token) {
+    const commitUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/commits/${commitSha}`;
+    const commitResp = await fetch(commitUrl, { headers: { Authorization: `token ${token}` } });
+    if (!commitResp.ok) throw new Error("无法获取 commit 信息");
+    const commitData = await commitResp.json();
+    const treeSha = commitData.tree.sha;
+
+    const headUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/main`;
+    const headResp = await fetch(headUrl, { headers: { Authorization: `token ${token}` } });
+    if (!headResp.ok) throw new Error("获取 HEAD 失败");
+    const headData = await headResp.json();
+    const parentSha = headData.object.sha;
+
+    const createCommitUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/commits`;
+    const newCommitResp = await fetch(createCommitUrl, {
+        method: "POST",
+        headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            message: `Revert to ${commitSha.substring(0, 7)} (via web editor)`,
+            tree: treeSha,
+            parents: [parentSha]
+        })
+    });
+    if (!newCommitResp.ok) throw new Error("创建回滚 commit 失败");
+    const newCommit = await newCommitResp.json();
+
+    const updateRefUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/main`;
+    const updateResp = await fetch(updateRefUrl, {
+        method: "PATCH",
+        headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ sha: newCommit.sha, force: false })
+    });
+    if (!updateResp.ok) throw new Error("更新分支引用失败");
+}
+
+function toggleFullscreen() {
+    const wrapper = document.querySelector(".editor-wrapper");
+    const btn = document.getElementById("btn-fullscreen");
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+        btn.textContent = "⛶ 全屏";
+    } else {
+        wrapper.requestFullscreen();
+        btn.textContent = "↩ 退出全屏";
+    }
+}
+document.addEventListener("fullscreenchange", () => {
+    const btn = document.getElementById("btn-fullscreen");
+    if (btn && !document.fullscreenElement) btn.textContent = "⛶ 全屏";
+});
+```
+
+### 3.8 `js/post.js` （帖子系统，代码框+预览）
+
+```javascript
+let postEditorMode = "new";
+let editingPostId = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("btn-new-post").addEventListener("click", showNewPostEditor);
+    document.getElementById("btn-publish").addEventListener("click", publishPost);
+    document.getElementById("btn-preview").addEventListener("click", togglePreview);
+    document.getElementById("btn-close-preview").addEventListener("click", hidePreview);
+    document.getElementById("btn-cancel-editor").addEventListener("click", cancelEditor);
+    loadPostList();
+});
+
+async function loadPostList() {
+    const listEl = document.getElementById("post-list");
+    listEl.innerHTML = "<p>加载中…</p>";
+    try {
+        const data = await githubGet("posts/list.json");
+        if (!data) {
+            listEl.innerHTML = "<p>暂无帖子</p>";
+            return;
+        }
+        const posts = JSON.parse(decodeBase64Content(data.content));
+        if (!Array.isArray(posts) || posts.length === 0) {
+            listEl.innerHTML = "<p>暂无帖子</p>";
+            return;
+        }
+        posts.sort((a, b) => b.timestamp - a.timestamp);
+        listEl.innerHTML = posts.map(p => `
+            <div class="post-item">
+                <div>
+                    <span class="post-title" onclick="viewPost('${p.id}')">${escapeHtml(p.title)}</span>
+                    <div class="post-meta">作者：${escapeHtml(p.author)} &nbsp;|&nbsp; ${new Date(p.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="post-actions">
+                    <button onclick="editPost('${p.id}')">✏️ 编辑</button>
+                    <button class="delete-btn" onclick="deletePost('${p.id}')">🗑 删除</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        listEl.innerHTML = `<p class="error">加载失败: ${err.message}</p>`;
+    }
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+async function viewPost(id) {
+    const modal = document.createElement("div");
+    modal.className = "preview-modal";
+    modal.innerHTML = `
+        <div class="preview-backdrop"></div>
+        <div class="preview-content" style="width:95%; height:85%;">
+            <span class="preview-close">&times;</span>
+            <iframe id="post-view-iframe" style="width:100%; height:100%; border:none;" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>`;
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    modal.querySelector(".preview-close").onclick = closeModal;
+    modal.querySelector(".preview-backdrop").onclick = closeModal;
+
+    try {
+        const data = await githubGet(`posts/${id}.html`);
+        if (!data) throw new Error("帖子不存在");
+        const htmlContent = decodeBase64Content(data.content);
+        document.getElementById("post-view-iframe").srcdoc = htmlContent;
+    } catch (err) {
+        document.getElementById("post-view-iframe").srcdoc = `<p style="color:red;">加载失败: ${err.message}</p>`;
+    }
+}
+
+function showNewPostEditor() {
+    if (!getToken()) { alert("请先登录"); return; }
+    postEditorMode = "new";
+    document.getElementById("post-title").value = "";
+    document.getElementById("post-code").value = "";
+    document.getElementById("editor-title").textContent = "发布新帖";
+    document.getElementById("btn-publish").textContent = "发布";
+    document.getElementById("editor-section").style.display = "block";
+    hidePreview();
+}
+
+async function editPost(id) {
+    if (!getToken()) { alert("请先登录"); return; }
+    try {
+        const data = await githubGet(`posts/${id}.html`);
+        if (!data) throw new Error("帖子不存在");
+        const htmlContent = decodeBase64Content(data.content);
+        const listData = await githubGet("posts/list.json");
+        const posts = listData ? JSON.parse(decodeBase64Content(listData.content)) : [];
+        const meta = posts.find(p => p.id === id);
+        document.getElementById("post-title").value = meta ? meta.title : "";
+        document.getElementById("post-code").value = htmlContent;
+        postEditorMode = "edit";
+        editingPostId = id;
+        document.getElementById("editor-title").textContent = "编辑帖子";
+        document.getElementById("btn-publish").textContent = "保存修改";
+        document.getElementById("editor-section").style.display = "block";
+        hidePreview();
+    } catch (err) {
+        alert("编辑失败: " + err.message);
+    }
+}
+
+function cancelEditor() {
+    document.getElementById("editor-section").style.display = "none";
+    hidePreview();
+}
+
+function togglePreview() {
+    const previewBox = document.getElementById("preview-box");
+    const code = document.getElementById("post-code").value;
+    if (previewBox.style.display === "block") {
+        hidePreview();
+    } else {
+        previewBox.style.display = "block";
+        document.getElementById("preview-iframe").srcdoc = code || "<p>无内容</p>";
+    }
+}
+
+function hidePreview() {
+    document.getElementById("preview-box").style.display = "none";
+    document.getElementById("preview-iframe").srcdoc = "";
+}
+
+async function publishPost() {
+    const token = getToken();
+    if (!token) { alert("未登录"); return; }
+
+    const title = document.getElementById("post-title").value.trim();
+    const code = document.getElementById("post-code").value.trim();
+    if (!title || !code) { alert("标题和内容不能为空"); return; }
+
+    const author = getAdminId();
+    const now = new Date();
+    const id = generateTimestamp() + "_" + Math.random().toString(36).substr(2, 5);
+
+    try {
+        const htmlB64 = btoa(unescape(encodeURIComponent(code)));
+        if (postEditorMode === "edit") {
+            const existing = await githubGet(`posts/${editingPostId}.html`);
+            await githubPut(`posts/${editingPostId}.html`, htmlB64, `Update post ${editingPostId}`, token, existing ? existing.sha : null);
+        } else {
+            await githubPut(`posts/${id}.html`, htmlB64, `Create post ${id}`, token);
+        }
+
+        const listData = await githubGet("posts/list.json");
+        let posts = [];
+        let listSha = null;
+        if (listData) {
+            posts = JSON.parse(decodeBase64Content(listData.content));
+            listSha = listData.sha;
+        }
+        if (postEditorMode === "edit") {
+            const idx = posts.findIndex(p => p.id === editingPostId);
+            if (idx >= 0) {
+                posts[idx].title = title;
+                posts[idx].timestamp = now.toISOString();
+                posts[idx].author = author;
+            }
+        } else {
+            posts.push({ id, title, author, timestamp: now.toISOString(), attachments: [] });
+        }
+        const listB64 = btoa(unescape(encodeURIComponent(JSON.stringify(posts, null, 2))));
+        await githubPut("posts/list.json", listB64, "Update post list", token, listSha);
+
+        cancelEditor();
+        await loadPostList();
+    } catch (err) {
+        alert("发布失败: " + err.message);
+    }
+}
+
+async function deletePost(id) {
+    if (!confirm("确定删除该帖子吗？")) return;
+    const token = getToken();
+    try {
+        const htmlData = await githubGet(`posts/${id}.html`);
+        if (htmlData) await githubDelete(`posts/${id}.html`, htmlData.sha, token);
+        const listData = await githubGet("posts/list.json");
+        if (listData) {
+            let posts = JSON.parse(decodeBase64Content(listData.content));
+            posts = posts.filter(p => p.id !== id);
+            const listB64 = btoa(unescape(encodeURIComponent(JSON.stringify(posts, null, 2))));
+            await githubPut("posts/list.json", listB64, `Delete post ${id}`, token, listData.sha);
+        }
+        await loadPostList();
+    } catch (err) {
+        alert("删除失败: " + err.message);
+    }
+}
+```
+
+### 3.9 `member/login.html`
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员登录 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container login-container">
+        <h1>🔐 管理员登录</h1>
+        <div id="login-message" class="message"></div>
+        <div id="login-form">
+            <div class="form-group">
+                <label for="admin-id">管理员 ID</label>
+                <input type="text" id="admin-id" placeholder="如 admin01" autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">卡密</label>
+                <input type="password" id="password" placeholder="输入解密卡密">
+            </div>
+            <button id="login-btn" class="btn">登录</button>
+            <div class="alt-link">
+                <a href="#" id="show-change-card">修改卡密</a>
+            </div>
+        </div>
+        <div id="change-card-form" style="display:none;">
+            <h2>修改卡密</h2>
+            <div class="form-group">
+                <label for="old-password">旧卡密</label>
+                <input type="password" id="old-password">
+            </div>
+            <div class="form-group">
+                <label for="new-password">新卡密</label>
+                <input type="password" id="new-password">
+            </div>
+            <button id="change-btn" class="btn">确认修改</button>
+            <a href="#" id="show-login" style="display:block; margin-top:10px;">返回登录</a>
+        </div>
+        <p style="text-align:center; margin-top:20px;">
+            <a href="home.html">← 返回首页</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        document.getElementById("login-btn").addEventListener("click", async () => {
+            const adminId = document.getElementById("admin-id").value.trim();
+            const pwd = document.getElementById("password").value;
+            const msgBox = document.getElementById("login-message");
+            if (!adminId || !pwd) { msgBox.textContent = "请填写完整"; msgBox.className = "message error"; return; }
+            msgBox.textContent = "正在验证..."; msgBox.className = "message info";
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const redirect = params.get("redirect") || "backend.html";
+                await performLogin(adminId, pwd, redirect);
+            } catch (err) {
+                msgBox.textContent = err.message; msgBox.className = "message error";
+            }
+        });
+        document.getElementById("show-change-card").addEventListener("click", (e) => {
+            e.preventDefault();
+            document.getElementById("login-form").style.display = "none";
+            document.getElementById("change-card-form").style.display = "block";
+        });
+        document.getElementById("show-login").addEventListener("click", (e) => {
+            e.preventDefault();
+            document.getElementById("login-form").style.display = "block";
+            document.getElementById("change-card-form").style.display = "none";
+        });
+        document.getElementById("change-btn").addEventListener("click", async () => {
+            const adminId = document.getElementById("admin-id").value.trim();
+            const oldPwd = document.getElementById("old-password").value;
+            const newPwd = document.getElementById("new-password").value;
+            const msgBox = document.getElementById("login-message");
+            if (!adminId || !oldPwd || !newPwd) { msgBox.textContent = "请填写所有字段"; msgBox.className = "message error"; return; }
+            try {
+                await changePassword(adminId, oldPwd, newPwd);
+                msgBox.textContent = "卡密修改成功，请使用新卡密登录。";
+                msgBox.className = "message success";
+                document.getElementById("change-card-form").style.display = "none";
+                document.getElementById("login-form").style.display = "block";
+            } catch (err) {
+                msgBox.textContent = err.message; msgBox.className = "message error";
+            }
+        });
+    </script>
+</body>
+</html>
+```
+
+### 3.10 `member/home.html` （前台，仅后台和帖子按钮）
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>器材组 - 首页</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>器材组网站</h1>
+        <p>欢迎来到器材组信息平台。</p>
+        <div style="margin: 25px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-top:0;">快速入口</h3>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <a href="notice.html" style="background:#28a745; color:white; padding:10px 20px; border-radius:6px; text-decoration:none;">📢 帖子中心</a>
+                <a href="backend.html" style="background:#ffc107; color:black; padding:10px 20px; border-radius:6px; text-decoration:none;">⚙️ 后台主页</a>
+            </div>
+        </div>
+        <p>更多信息请查看 <a href="notice.html">通知</a>。</p>
+    </div>
+</body>
+</html>
+```
+
+### 3.11 `member/backend.html` （后台主页，已有返回前台）
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .dashboard-card {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: background 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .dashboard-card:hover { background: #e9ecef; }
+        .dashboard-card h3 { margin-top: 0; color: #007bff; }
+        .status-panel {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 5px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ 后台管理主页</h1>
+        <div class="status-panel" id="auth-status">
+            <strong>认证状态：</strong><span id="auth-text">检查中…</span>
+            <button id="clear-auth-btn" style="margin-left:15px; display:none;">清除认证信息</button>
+        </div>
+        <div class="dashboard-grid">
+            <a href="deduct.html" class="dashboard-card"><h3>⚡ 扣分操作</h3><p>录入新的扣分记录</p></a>
+            <a href="admin.html" class="dashboard-card"><h3>📋 分数管理</h3><p>成员分数列表与记录查询</p></a>
+            <a href="file_editor.html" class="dashboard-card"><h3>📁 文件编辑器</h3><p>浏览、编辑仓库文件，备份与回滚</p></a>
+            <a href="notice.html" class="dashboard-card"><h3>📢 帖子中心</h3><p>发布和管理公告帖子</p></a>
+            <a href="test_key.html" class="dashboard-card"><h3>🔑 卡密测试</h3><p>备用卡密测试页</p></a>
+        </div>
+        <p style="margin-top:30px;">
+            <a href="home.html">← 返回前台主页</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script>
+        function updateAuthStatus() {
+            const token = getToken();
+            const adminId = getAdminId();
+            const textSpan = document.getElementById("auth-text");
+            const clearBtn = document.getElementById("clear-auth-btn");
+            if (token && adminId) {
+                textSpan.textContent = `已授权 (管理员 ${adminId})`;
+                clearBtn.style.display = "inline-block";
+            } else {
+                textSpan.textContent = "未登录，即将跳转...";
+                clearBtn.style.display = "none";
+                setTimeout(() => { window.location.href = `login.html?redirect=backend.html`; }, 800);
+            }
+        }
+        document.getElementById("clear-auth-btn").addEventListener("click", () => { clearAuth(); updateAuthStatus(); });
+        updateAuthStatus();
+    </script>
+</body>
+</html>
+```
+
+### 3.12 `member/deduct.html` （仅返回后台）
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扣分操作 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>扣分操作</h1>
+        <div id="message" class="message"></div>
+        <form id="deduct-form">
+            <div class="form-group">
+                <label for="student_id">被扣分人学号</label>
+                <input type="text" id="student_id" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="points">扣分分数（正整数）</label>
+                <input type="number" id="points" min="1" step="1" required>
+            </div>
+            <div class="form-group">
+                <label for="reason">扣分理由</label>
+                <textarea id="reason" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="attachments">附件（可选，可多选）</label>
+                <input type="file" id="attachments" multiple>
+            </div>
+            <button type="submit">提交扣分</button>
+        </form>
+        <p><a href="backend.html">← 返回后台</a></p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/deduct.js"></script>
+</body>
+</html>
+```
+
+### 3.13 `member/admin.html` （仅返回后台）
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理面板 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>管理面板</h1>
+        <section>
+            <h2>成员分数列表</h2>
+            <table>
+                <thead><tr><th>学号</th><th>当前分数</th></tr></thead>
+                <tbody id="score-table-body"></tbody>
+            </table>
+        </section>
+        <section style="margin-top: 30px;">
+            <h2>扣分记录查询</h2>
+            <div class="form-inline">
+                <input type="text" id="query-student-id" placeholder="输入学号">
+                <button id="query-btn">查询</button>
+            </div>
+            <div id="query-result"></div>
+        </section>
+        <p style="margin-top:20px;">
+            <a href="backend.html">← 返回后台主页</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/admin.js"></script>
+</body>
+</html>
+```
+
+### 3.14 `member/file_editor.html` （仅返回后台）
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件编辑器 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📁 仓库文件编辑器</h1>
+        <div id="editor-message" class="message"></div>
+        <div class="editor-toolbar">
+            <button id="btn-backup" title="下载整个仓库 ZIP 备份">⬇️ 下载备份</button>
+            <button id="btn-commits">📜 提交历史</button>
+            <button id="btn-new-file">➕ 新建文件</button>
+            <span class="file-path" id="current-file-path"></span>
+        </div>
+        <div class="editor-wrapper">
+            <div class="file-tree" id="file-tree"></div>
+            <div class="editor-panel">
+                <textarea id="file-content" placeholder="选择左侧文件以编辑..."></textarea>
+                <div class="editor-toolbar" style="justify-content: flex-end;">
+                    <button id="btn-save-file" disabled>💾 保存文件</button>
+                    <button id="btn-delete-file" class="delete-btn" disabled>🗑 删除</button>
+                </div>
+            </div>
+        </div>
+        <p style="margin-top:15px;">
+            <a href="backend.html">← 返回后台</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/file_editor.js"></script>
+</body>
+</html>
+```
+
+### 3.15 `member/notice.html` （帖子中心，有返回后台和返回前台）
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帖子中心 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📢 帖子中心</h1>
+        <div id="auth-status" style="margin-bottom:10px;"></div>
+        <button id="btn-new-post" style="display:none;">➕ 发布新帖</button>
+        <div id="post-list" class="post-list"></div>
+
+        <div id="editor-section" style="display:none; margin-top:20px;">
+            <h2 id="editor-title">发布新帖</h2>
+            <div class="form-group">
+                <label for="post-title">标题</label>
+                <input type="text" id="post-title" placeholder="帖子标题">
+            </div>
+            <div class="form-group">
+                <label for="post-code">HTML 代码</label>
+                <textarea id="post-code" placeholder="在此输入 HTML 代码（支持 JavaScript）…"></textarea>
+            </div>
+            <div class="toolbar-row">
+                <button id="btn-preview" class="btn" style="background:#6c757d;">👁 预览</button>
+                <button id="btn-publish" class="btn">发布</button>
+                <button id="btn-cancel-editor" class="btn" style="background:gray;">取消</button>
+            </div>
+            <div id="preview-box" class="preview-container" style="display:none;">
+                <div style="padding:5px 10px; background:#f8f9fa; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                    <span>预览</span>
+                    <button id="btn-close-preview" style="background:none; border:none; font-size:18px; cursor:pointer; padding:0 5px;">&times;</button>
+                </div>
+                <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin" title="帖子预览"></iframe>
+            </div>
+        </div>
+
+        <p style="margin-top:20px;">
+            <a href="backend.html">← 返回后台</a> &nbsp;|&nbsp; <a href="home.html">← 返回前台</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/post.js"></script>
+    <script>
+        if (getToken() && getAdminId()) {
+            document.getElementById("btn-new-post").style.display = "inline-block";
+            document.getElementById("auth-status").innerHTML = `<span style="color:green;">已登录 (${getAdminId()})</span>`;
+        } else {
+            document.getElementById("auth-status").innerHTML = `<span style="color:gray;">仅浏览模式，<a href="login.html">登录</a>后可发布</span>`;
+        }
+    </script>
+</body>
+</html>
+```
+
+### 3.16 可选：`member/test_key.html`（备用，无修改）
+
+保留原版即可，不再列出。
+
+---
+
+## 四、关键运作方式与注意事项
+
+### 部署前准备
+1. 在 GitHub 仓库中创建目录 `member/admin_info/<管理员ID>/`，使用 `encrypt_keys.py` 生成 `key` 文件并推送。
+2. 确保仓库内 `posts/list.json` 存在且内容为 `[]`（Base64 编码后上传，或通过文件编辑器新建）。
+3. 所有 `.html` 页面通过 Cloudflare Pages 自动部署。
+
+### 认证流程
+- 访问任何管理页面（`backend.html`、`deduct.html`、`admin.html`、`file_editor.html`）时，若未携带有效 Token，自动跳转 `login.html`。
+- 登录成功后 Token 存储在 Cookie，有效期 7 天。
+- 修改卡密时，必须使用当前登录的 Token 进行 API 写入，无需重新登录。
+
+### 文件编辑器回滚机制
+- 回滚通过创建一个新的 Git commit，其 tree 指向历史 commit 的 tree，实现保留历史的前提下恢复文件。并非强制推送。
+
+### 帖子系统
+- 帖子内容为原始 HTML，支持 `<script>` 标签执行 JS，预览和查看均通过 `iframe` 加载，使用 `sandbox="allow-scripts allow-same-origin"`。
+- 标题与作者在列表中经过了转义，防止破坏页面结构。
+
+---
+
+## 五、已知漏洞与改进建议（请下一位 AI 务必阅读）
+
+| 严重程度 | 问题 | 建议 |
+|--------|------|------|
+| 🔴 致命 | 仓库公开 + 前端密文与盐暴露。攻击者可下载 `key` 文件并暴力破解卡密（迭代仅1000次）。 | 将仓库转为**私有**；或将解密逻辑迁至 Cloudflare Workers，前端不再接触密文。 |
+| 🔴 致命 | 无 XSS 防护：扣分理由、附件名称等直接插入 HTML，帖子内容允许任意脚本。 | 使用 `DOMPurify` 过滤帖子内容，对其他用户输入进行 `textContent` 转义。 |
+| 🟠 高危 | 分数更新未处理并发冲突（409），可能覆盖数据。 | 在写入失败时检测 409 并重新获取 sha 重试。 |
+| 🟡 中危 | PBKDF2 迭代次数过低（1000），易暴力破解。 | 增加至 100,000 或以上，同时注意前端性能。 |
+| 🟡 中危 | Cookie 未设置 `Secure` 标志（HTTPS 下自动忽略）。 | 在 `setCookie` 中添加 `Secure`。 |
+| 🟢 低 | 不校验学号存在性；附件清理不彻底；无操作审计日志。 | 按需改进。 |
+
+---
+
+## 六、对下一任 AI 的严正要求
+
+1. **必须输出完整代码**：每次修改任何文件，都需要给出该文件的**完整内容**，不允许只给出片段或“修改部分”，否则将导致无法部署。
+2. **不得猜测未知信息**：如果需求不明确（例如某个参数的值、按钮的跳转路径），必须主动询问，不可擅自假设。
+3. **保持 HTML/CSS/JS 分离**：结构、样式、逻辑分别放在 `.html`、`.css`、`.js` 文件中。
+4. **优先修复安全漏洞**：在开发新功能前，请先处理上述“致命”和“高危”问题，尤其是 XSS 和并发写入。
+5. **测试建议**：部署后，请清除浏览器缓存与 Cookie，用无痕模式测试登录、扣分、回滚、帖子发布全流程。
+
+---
+
+以上即为全部交接内容，祝后续开发顺利。
