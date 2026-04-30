@@ -143,7 +143,7 @@ async function downloadRepoZip() {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
     const resp = await fetch(url, {
         headers: { Authorization: `token ${token}` },
-        redirect: 'manual'           // 手动处理 302 重定向
+        redirect: 'manual'
     });
     let downloadUrl;
     if (resp.status === 302) {
@@ -168,7 +168,6 @@ async function downloadRepoZip() {
 async function downloadSingleFile(filePath) {
     const data = await githubGet(filePath);
     if (!data) throw new Error("文件不存在");
-    // content 已经是 Base64
     const byteChars = atob(data.content);
     const bytes = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) {
