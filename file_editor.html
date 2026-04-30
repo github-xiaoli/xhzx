@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件编辑器 - 器材组</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- JSZip 用于前端打包文件夹下载 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 仓库文件编辑器</h1>
+        <div id="editor-message" class="message"></div>
+        <div class="editor-toolbar">
+            <button id="btn-backup" title="下载整个仓库 ZIP 备份">⬇️ 备份</button>
+            <button id="btn-commits">📜 提交历史</button>
+            <button id="btn-new-file">➕ 新建</button>
+            <button id="btn-upload-file" title="上传文件到当前目录">📤 上传文件</button>
+            <button id="btn-upload-folder" title="上传文件夹（含子目录）">📁 上传文件夹</button>
+            <button id="btn-download-file" disabled title="下载当前打开的文件">⬇️ 下载文件</button>
+            <button id="btn-download-folder" disabled title="下载选中的文件夹为 ZIP">🗂 下载文件夹</button>
+            <span class="file-path" id="current-file-path"></span>
+        </div>
+        <div class="editor-wrapper">
+            <div class="file-tree" id="file-tree"></div>
+            <div class="editor-panel">
+                <textarea id="file-content" placeholder="选择左侧文件以编辑..."></textarea>
+                <div class="editor-toolbar" style="justify-content: flex-end;">
+                    <button id="btn-save-file" disabled>💾 保存文件</button>
+                    <button id="btn-delete-file" class="delete-btn" disabled>🗑 删除</button>
+                </div>
+            </div>
+        </div>
+        <!-- 隐藏的文件选择器 -->
+        <input type="file" id="upload-file-input" class="hidden-input" multiple>
+        <input type="file" id="upload-folder-input" class="hidden-input" webkitdirectory multiple>
+        <p style="margin-top:15px;">
+            <a href="backend.html">← 返回后台</a>
+        </p>
+    </div>
+    <script src="../js/github.js"></script>
+    <script src="../js/file_editor.js"></script>
+</body>
+</html>
