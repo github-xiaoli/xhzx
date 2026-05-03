@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注意事项</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "SimSun", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .sections-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .section-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+            color: white;
+        }
+        
+        .section-header.management {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+        }
+        
+        .section-header h2 {
+            font-size: 24px;
+            margin: 0;
+        }
+        
+        .section-content {
+            padding: 25px;
+        }
+        
+        .item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #eaeaea;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .item-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            background: #4a6fa5;
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .pingpong .item-number {
+            background: #e76f51;
+        }
+        
+        .item-text {
+            flex: 1;
+            font-size: 15px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+            border-top: 1px solid #eaeaea;
+            margin-top: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .sections-container {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 26px;
+            }
+            
+            .section-header h2 {
+                font-size: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+            }
+            
+            .section-content {
+                padding: 15px;
+            }
+            
+            .item {
+                flex-direction: column;
+            }
+            
+            .item-number {
+                margin-bottom: 8px;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>注意事项与使用规范</h1>
+            
+        </div>
+        
+        <div class="sections-container">
+            <!-- 管理器材注意事项部分 -->
+            <section class="section">
+                <div class="section-header management">
+                    <h2>管理器材注意事项</h2>
+                </div>
+                <div class="section-content">
+                    <div class="item">
+                        <div class="item-number">1</div>
+                        <div class="item-text">器材入库前需逐件验收，核对外观、配件、功能是否完好，验收不合格严禁入库使用。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">2</div>
+                        <div class="item-text">器材按类别、用途、使用频率分区摆放，做好清晰标识，避免混放、挤压，预留操作和搬运通道。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">3</div>
+                        <div class="item-text">器材领用、归还实行登记签字制度，明确领用人员、使用时间、用途及归还状态，杜绝私自挪用。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">4</div>
+                        <div class="item-text">领用器材时需当场检查完好性，发现损坏、故障立即报备，严禁领用故障器材进行操作。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">5</div>
+                        <div class="item-text">使用器材前必须熟悉操作规范，严禁违规操作、超负荷使用，避免人为损坏。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">6</div>
+                        <div class="item-text">操作精密或大型器材时，需由具备相应资质的人员进行，严禁无证人员擅自操作。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">7</div>
+                        <div class="item-text">户外使用的器材，使用后及时清理水渍、泥沙，做好擦拭处理，妥善归库。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">8</div>
+                        <div class="item-text">损坏无法修复的器材，按规定流程办理报废手续，及时清理销账，严禁报废器材继续存放或使用。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">9</div>
+                        <div class="item-text">禁止在器材存放区域堆放杂物、易燃易爆物品，保持存放环境通风、干燥、整洁。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">10</div>
+                        <div class="item-text">器材存放区域落实安全防护措施，做好防火、防盗、防鼠害工作，定期检查安防设施。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">11</div>
+                        <div class="item-text">定期组织器材管理和使用人员开展培训，强化规范操作、维护保养及安全管理意识。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">12</div>
+                        <div class="item-text">多人共用的器材，明确使用交接责任，交接时需检查器材状态并做好书面记录。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">13</div>
+                        <div class="item-text">器材车需牢固稳定，重型器材单独放置于承重区域，防止损坏。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">14</div>
+                        <div class="item-text">对计量类、检测类器材，按国家规范定期送检校淮，确保数据精准有效，贴好校准标识。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">15</div>
+                        <div class="item-text">运输搬运器材时，选用适配的工具和防护包装，轻拿轻放，避免剧烈震动和碰撞。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">16</div>
+                        <div class="item-text">临时外借器材需经审批同意，明确归还期限和损坏赔偿责任。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">17</div>
+                        <div class="item-text">定期对器材进行核对更新，每月至少一次账物核对，及时发现并整改问题。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">18</div>
+                        <div class="item-text">做好器材管理应急预案，遇突发情况（如偷窃）能快速妥善处置，减少器材损失。</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 乒乓球房注意事项部分 -->
+            <section class="section pingpong">
+                <div class="section-header">
+                    <h2>乒乓球房注意事项</h2>
+                </div>
+                <div class="section-content">
+                    <div class="item">
+                        <div class="item-number">1</div>
+                        <div class="item-text">进入球房需更换干净软底运动鞋，严禁穿皮鞋、高跟鞋、室外鞋入内，避免划伤地面。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">2</div>
+                        <div class="item-text">球房内禁止随地吐痰，不得乱扔纸屑、饮料瓶等杂物，保持环境整洁。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">3</div>
+                        <div class="item-text">严禁携带食品、有色饮料进入球区，饮用水需放置在指定区域，防止洒漏损坏场地。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">4</div>
+                        <div class="item-text">进入球房请勿大声喧哗、追逐打闹，保持安静，避免影响他人正常运动。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">5</div>
+                        <div class="item-text">合理使用球台，严禁用球拍、硬物敲击球台台面、球网及支架，避免造成损坏。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">6</div>
+                        <div class="item-text">球拍、乒乓球等个人器材自行妥善保管，丢失或损坏由个人负责，请勿随意摆放。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">7</div>
+                        <div class="item-text">多人共用球台时，自觉遵守轮流使用规则，文明竞技，避免因争抢产生矛盾。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">8</div>
+                        <div class="item-text">运动前做好热身活动，避免突然剧烈运动导致扭伤、拉伤等运动损伤。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">9</div>
+                        <div class="item-text">运动过程中注意避让他人，防止球拍、乒乓球误伤周边人员。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">10</div>
+                        <div class="item-text">严禁在球台、墙面、立柱上乱涂乱画、粘贴物品，爱护球房内所有公共设施。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">11</div>
+                        <div class="item-text">球网、球台若出现松动、损坏，立即停止使用并联系管理人员，请勿自行拆卸维修。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">12</div>
+                        <div class="item-text">离开球房前，自觉将个人物品带走，清理所在区域的杂物，保持球台及周边整洁。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">13</div>
+                        <div class="item-text">严禁在球房内进行与乒乓球运动无关的活动，不得随意搬动球房内的设施设备。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">14</div>
+                        <div class="item-text">球房内的照明、通风等设备，按需使用，离开时随手关闭，节约用电。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">15</div>
+                        <div class="item-text">文明打球，尊重对手和同伴，杜绝恶意扣球、辱骂等不文明竞技行为。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">16</div>
+                        <div class="item-text">遇球房内设施故障、地面湿滑等安全隐患，及时告知管理人员，避免发生意外。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">17</div>
+                        <div class="item-text">严禁将易燃易爆、尖锐锋利等危险物品带入球房，确保球房内运动安全。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">18</div>
+                        <div class="item-text">自觉遵守球房的开放时间和各项管理规定，服从管理人员的现场安排和指导。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">19</div>
+                        <div class="item-text">严禁倚靠、踩踏球台边缘，避免球台变形影响使用，损坏需按规定赔偿。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">20</div>
+                        <div class="item-text">个人球拍勿随意摆放于球台台面，防止刮花台面涂层，影响击球效果。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">21</div>
+                        <div class="item-text">爱护球房内墙面、门窗及照明设施，严禁拍打、撞击立柱和门窗玻璃。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">22</div>
+                        <div class="item-text">借用球房公共器材需登记，使用后检查完好性并及时归还，禁止私自带走。</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-number">23</div>
+                        <div class="item-text">非球房工作人员，严禁擅自操作球房内的电源总闸、空调等控制设备。</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+        
+        <div class="footer">
+            <p>© 2026 徐汇中学器材管理组 | 请遵守相关规定，共同维护良好环境</p>
+        </div>
+    </div>
+</body>
+</html>
