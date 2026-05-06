@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动打开百度</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --subtext: #666666;
+            --primary: #4e6ef2;
+            --primary-hover: #3b54d4;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            --radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e8ecf1 0%, #dce2e8 30%, #eef1f5 60%, #e3e9f0 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                "Microsoft YaHei", "Helvetica Neue", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow), 0 1px 3px rgba(0, 0, 0, 0.04);
+            padding: 48px 40px 40px;
+            text-align: center;
+            max-width: 440px;
+            width: 90%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .icon-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4e6ef2 0%, #6b8aff 100%);
+            margin-bottom: 24px;
+            box-shadow: 0 6px 20px rgba(78, 110, 242, 0.3);
+        }
+
+        .icon-wrap svg {
+            width: 36px;
+            height: 36px;
+            fill: #ffffff;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+
+        .status {
+            font-size: 0.95rem;
+            color: var(--subtext);
+            margin-bottom: 28px;
+            line-height: 1.6;
+            transition: color 0.3s ease;
+        }
+
+        .status.success {
+            color: #2eaa5b;
+        }
+
+        .status.blocked {
+            color: #e8860c;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 36px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #ffffff;
+            background: var(--primary);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 14px rgba(78, 110, 242, 0.35);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 6px 20px rgba(78, 110, 242, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 8px rgba(78, 110, 242, 0.3);
+            transition: all 0.1s ease;
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid rgba(78, 110, 242, 0.4);
+            outline-offset: 3px;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .container>* {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        .container>*:nth-child(1) {
+            animation-delay: 0s;
+        }
+        .container>*:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+        .container>*:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+        .container>*:nth-child(4) {
+            animation-delay: 0.24s;
+        }
+        .container>*:nth-child(5) {
+            animation-delay: 0.32s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 图标 -->
+        <div class="icon-wrap" aria-hidden="true">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+            </svg>
+        </div>
+
+        <!-- 标题 -->
+        <h1>正在为您打开百度</h1>
+
+        <!-- 状态文字 -->
+        <p id="statusText" class="status">新窗口即将打开…</p>
+
+        <!-- 手动打开按钮（初始隐藏，拦截时显示） -->
+        <button id="manualBtn" class="btn hidden" onclick="openBaidu()">
+            点此手动打开百度
+        </button>
+
+        <!-- 底部提示 -->
+        <p class="hint">如新窗口未弹出，请检查浏览器是否开启了弹窗拦截</p>
+    </div>
+
+    <script>
+        (function () {
+            const statusText = document.getElementById('statusText');
+            const manualBtn = document.getElementById('manualBtn');
+            let popupWindow = null;
+            let isBlocked = false;
+
+            // 打开百度的函数
+            function openBaidu() {
+                try {
+                    // 在新窗口打开百度
+                    popupWindow = window.open(
+                        'https://www.baidu.com',
+                        '_blank',
+                        'width=1200,height=800,menubar=no,toolbar=no,location=yes,status=yes,scrollbars=yes,resizable=yes'
+                    );
+
+                    // 检测弹窗是否成功打开
+                    if (
+                        popupWindow === null ||
+                        popupWindow === undefined ||
+                        popupWindow.closed
+                    ) {
+                        // 可能被拦截
+                        return false;
+                    }
+
+                    // 尝试聚焦新窗口
+                    try {
+                        popupWindow.focus();
+                    } catch (e) {
+                        // 跨域情况下focus可能失败，忽略
+                    }
+
+                    return true;
+                } catch (e) {
+                    // 某些浏览器可能在window.open时抛出异常
+                    console.warn('window.open 异常:', e);
+                    return false;
+                }
+            }
+
+            // 显示被拦截的UI
+            function showBlockedUI() {
+                isBlocked = true;
+                statusText.textContent = '弹窗可能被浏览器拦截了';
+                statusText.className = 'status blocked';
+                manualBtn.classList.remove('hidden');
+                manualBtn.focus();
+            }
+
+            // 显示成功的UI
+            function showSuccessUI() {
+                statusText.textContent = '✅ 百度已在新窗口打开';
+                statusText.className = 'status success';
+            }
+
+            // === 策略1：页面加载时立即尝试 ===
+            const immediateResult = openBaidu();
+
+            if (immediateResult) {
+                showSuccessUI();
+            }
+
+            // === 策略2：延迟检测（有些浏览器会延迟拦截判断） ===
+            setTimeout(function () {
+                if (isBlocked) return; // 已经确认被拦截
+
+                if (!immediateResult) {
+                    // 第一次就失败了
+                    showBlockedUI();
+                } else if (popupWindow && popupWindow.closed) {
+                    // 窗口被打开了但又被关闭了（极少见）
+                    // 不做额外处理
+                }
+                // 如果 immediateResult 为 true 且窗口未关闭，说明成功，无需额外操作
+            }, 600);
+
+            // === 策略3：用户与页面交互时再次尝试（能绕过大部分拦截） ===
+            let interactionRetried = false;
+            const interactionEvents = ['click', 'keydown', 'touchstart', 'scroll'];
+
+            function onUserInteraction() {
+                if (interactionRetried || isBlocked === false) {
+                    // 已经重试过，或者弹窗已成功
+                    // 但如果第一次成功了，不再重复打开
+                    return;
+                }
+
+                interactionRetried = true;
+
+                // 移除所有交互监听
+                interactionEvents.forEach(function (evt) {
+                    document.removeEventListener(evt, onUserInteraction, true);
+                });
+
+                // 再次尝试打开
+                const retryResult = openBaidu();
+                if (retryResult) {
+                    // 成功了！更新UI
+                    isBlocked = false;
+                    showSuccessUI();
+                    manualBtn.classList.add('hidden');
+                } else {
+                    // 仍然失败，确保拦截UI显示
+                    showBlockedUI();
+                }
+            }
+
+            // 在捕获阶段监听交互事件
+            interactionEvents.forEach(function (evt) {
+                document.addEventListener(evt, onUserInteraction, true);
+            });
+
+            // === 暴露手动打开函数到全局 ===
+            window.openBaidu = function () {
+                const result = openBaidu();
+                if (result) {
+                    isBlocked = false;
+                    showSuccessUI();
+                    manualBtn.classList.add('hidden');
+                } else {
+                    // 仍然失败
+                    showBlockedUI();
+                    // 提供一个直接链接作为最后的备选
+                    statusText.textContent =
+                        '弹窗仍被拦截，请点击下方链接';
+                    statusText.className = 'status blocked';
+                    manualBtn.outerHTML =
+                        '<a href="https://www.baidu.com" target="_blank" rel="noopener noreferrer" class="btn" style="display:inline-block;">直接访问百度</a>';
+                }
+            };
+        })();
+    </script>
+</body>
+</html>
