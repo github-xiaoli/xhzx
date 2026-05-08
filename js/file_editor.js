@@ -173,7 +173,7 @@ async function saveFile() {
     const token = getToken();
     const newContent = document.getElementById("file-content").value;
 
-    // 正确的 UTF-8 → Base64 编码（避免 "bad base-64" 错误）
+    // 标准 UTF-8 → Base64 编码
     const encoder = new TextEncoder();
     const data = encoder.encode(newContent);
     const binary = Array.from(data, byte => String.fromCharCode(byte)).join('');
