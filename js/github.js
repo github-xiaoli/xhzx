@@ -136,27 +136,18 @@ function fileToBase64(file) {
     });
 }
 
-// --- 下载仓库 ZIP（修复重定向丢失认证） ---
+// --- 下载仓库 ZIP（已修复：改用自动跟随重定向，兼容 WebView） ---
 async function downloadRepoZip() {
     const token = getToken();
     if (!token) throw new Error("未登录");
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
+    // 直接 fetch 并跟随重定向（兼容浏览器与 APK WebView）
     const resp = await fetch(url, {
         headers: { Authorization: `token ${token}` },
-        redirect: 'manual'
+        redirect: 'follow'            // ← 关键修复
     });
-    let downloadUrl;
-    if (resp.status === 302) {
-        downloadUrl = resp.headers.get('Location');
-        if (!downloadUrl) throw new Error("获取下载地址失败");
-    } else if (resp.status === 200) {
-        downloadUrl = url;
-    } else {
-        throw new Error(`下载请求失败 (${resp.status})`);
-    }
-    const blobResp = await fetch(downloadUrl);
-    if (!blobResp.ok) throw new Error("下载文件失败");
-    const blob = await blobResp.blob();
+    if (!resp.ok) throw new Error(`下载失败 (${resp.status})，请检查网络或APK权限`);
+    const blob = await resp.blob();
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${GITHUB_REPO}_backup.zip`;
@@ -164,21 +155,29 @@ async function downloadRepoZip() {
     URL.revokeObjectURL(link.href);
 }
 
-// --- 下载单个文件（将 Base64 内容转为 Blob 下载） ---
+// --- 下载单个文件（增强错误提示） ---
 async function downloadSingleFile(filePath) {
-    const data = await githubGet(filePath);
-    if (!data) throw new Error("文件不存在");
-    const byteChars = atob(data.content);
-    const bytes = new Uint8Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) {
-        bytes[i] = byteChars.charCodeAt(i);
+    try {
+        const data = await githubGet(filePath);
+        if (!data) throw new Error("文件不存在");
+        const byteChars = atob(data.content);
+        const bytes = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+            bytes[i] = byteChars.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'application/octet-stream' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = data.name;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    } catch (err) {
+        // 若为 fetch 失败，给出 WebView 排查建议
+        if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+            throw new Error('下载失败，请检查 APK 是否授予了网络权限（INTERNET）');
+        }
+        throw err;
     }
-    const blob = new Blob([bytes], { type: 'application/octet-stream' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = data.name;
-    link.click();
-    URL.revokeObjectURL(link.href);
 }
 
 // --- 递归下载文件夹为 ZIP（依赖 JSZip 库） ---
