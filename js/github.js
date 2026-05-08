@@ -136,28 +136,62 @@ function fileToBase64(file) {
     });
 }
 
-// --- 下载仓库 ZIP（已修复：改用自动跟随重定向，兼容 WebView） ---
+// ========== 下载函数（针对 WebView/APK 优化） ==========
+
+// 统一的：直接通过 URL 触发系统下载（避免 fetch 跨域）
+function triggerDownload(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || '';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    }, 100);
+}
+
+// 仓库 ZIP 备份下载
 async function downloadRepoZip() {
     const token = getToken();
     if (!token) throw new Error("未登录");
-    const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
-    // 直接 fetch 并跟随重定向（兼容浏览器与 APK WebView）
-    const resp = await fetch(url, {
-        headers: { Authorization: `token ${token}` },
-        redirect: 'follow'            // ← 关键修复
-    });
-    if (!resp.ok) throw new Error(`下载失败 (${resp.status})，请检查网络或APK权限`);
-    const blob = await resp.blob();
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${GITHUB_REPO}_backup.zip`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+
+    // 方案 A：直接用带 token 的公开链接（绕过 CORS，适合 APK）
+    const directUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
+    // GitHub 支持 access_token 参数（虽然已弃用但依然有效）
+    const downloadUrl = `${directUrl}?access_token=${encodeURIComponent(token)}`;
+
+    try {
+        // 先尝试 fetch（浏览器环境）
+        const resp = await fetch(directUrl, {
+            headers: { Authorization: `token ${token}` },
+            redirect: 'follow'
+        });
+        if (resp.ok) {
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            triggerDownload(blobUrl, `${GITHUB_REPO}_backup.zip`);
+            return;
+        }
+        throw new Error('status ' + resp.status);
+    } catch (e) {
+        // 回退到直接打开链接（APK 环境）
+        console.warn('fetch 下载失败，已切换到系统下载：', e);
+        window.location.href = downloadUrl;
+    }
 }
 
-// --- 下载单个文件（增强错误提示） ---
+// 下载单个文件
 async function downloadSingleFile(filePath) {
+    const token = getToken();
+    if (!token) throw new Error("未登录");
+
+    const directUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`;
+    const downloadUrl = `${directUrl}?access_token=${encodeURIComponent(token)}`;
+
     try {
+        // 先用 fetch 获取文件内容，再触发下载（浏览器可用）
         const data = await githubGet(filePath);
         if (!data) throw new Error("文件不存在");
         const byteChars = atob(data.content);
@@ -166,51 +200,58 @@ async function downloadSingleFile(filePath) {
             bytes[i] = byteChars.charCodeAt(i);
         }
         const blob = new Blob([bytes], { type: 'application/octet-stream' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = data.name;
-        link.click();
-        URL.revokeObjectURL(link.href);
-    } catch (err) {
-        // 若为 fetch 失败，给出 WebView 排查建议
-        if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
-            throw new Error('下载失败，请检查 APK 是否授予了网络权限（INTERNET）');
-        }
-        throw err;
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl, data.name);
+    } catch (e) {
+        // 回退：直接打开 GitHub 的 raw 内容链接（需要 raw URL）
+        // 注意：GitHub raw 链接格式为 https://raw.githubusercontent.com/...
+        // 但我们没有直接对应的 raw URL，这里用 API 的下载端点
+        console.warn('fetch 单文件失败，切换系统下载：', e);
+        // 改用 API 的下载端点（会重定向到 raw 内容）
+        window.location.href = downloadUrl;
     }
 }
 
-// --- 递归下载文件夹为 ZIP（依赖 JSZip 库） ---
+// 下载文件夹为 ZIP（需要 JSZip，并在 APK 中做 fallback）
 async function downloadFolderAsZip(folderPath) {
-    if (typeof JSZip === 'undefined') throw new Error("缺少 JSZip 库，无法打包文件夹");
-    const zip = new JSZip();
-    async function addToZip(dirPath, zipFolder) {
-        const entries = await githubGet(dirPath);
-        if (!entries || !Array.isArray(entries)) return;
-        for (const entry of entries) {
-            const fullPath = dirPath ? `${dirPath}/${entry.name}` : entry.name;
-            if (entry.type === 'file') {
-                const fileData = await githubGet(fullPath);
-                if (fileData) {
-                    const byteChars = atob(fileData.content);
-                    const bytes = new Uint8Array(byteChars.length);
-                    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-                    zipFolder.file(entry.name, bytes);
+    // 如果 JSZip 不可用，直接报错（或可改为用仓库备份替代）
+    if (typeof JSZip === 'undefined') {
+        alert("当前环境不支持打包文件夹，请使用电脑端或下载整个仓库备份");
+        return;
+    }
+
+    try {
+        // 优先使用 JSZip 在前端打包
+        const zip = new JSZip();
+        async function addToZip(dirPath, zipFolder) {
+            const entries = await githubGet(dirPath);
+            if (!entries || !Array.isArray(entries)) return;
+            for (const entry of entries) {
+                const fullPath = dirPath ? `${dirPath}/${entry.name}` : entry.name;
+                if (entry.type === 'file') {
+                    const fileData = await githubGet(fullPath);
+                    if (fileData) {
+                        const byteChars = atob(fileData.content);
+                        const bytes = new Uint8Array(byteChars.length);
+                        for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+                        zipFolder.file(entry.name, bytes);
+                    }
+                } else if (entry.type === 'dir') {
+                    const subFolder = zipFolder.folder(entry.name);
+                    if (subFolder) await addToZip(fullPath, subFolder);
                 }
-            } else if (entry.type === 'dir') {
-                const subFolder = zipFolder.folder(entry.name);
-                if (subFolder) await addToZip(fullPath, subFolder);
             }
         }
+        const rootFolder = zip.folder(folderPath.split('/').pop() || 'root');
+        if (rootFolder) await addToZip(folderPath, rootFolder);
+        const blob = await zip.generateAsync({ type: "blob" });
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl, (folderPath.split('/').pop() || 'folder') + '.zip');
+    } catch (e) {
+        // ZIP 打包失败时，回退为下载整个仓库（同样用 access_token 方式）
+        console.error('文件夹ZIP失败，尝试下载整个仓库：', e);
+        await downloadRepoZip();
     }
-    const rootFolder = zip.folder(folderPath.split('/').pop() || 'root');
-    if (rootFolder) await addToZip(folderPath, rootFolder);
-    const blob = await zip.generateAsync({ type: "blob" });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = (folderPath.split('/').pop() || 'folder') + '.zip';
-    link.click();
-    URL.revokeObjectURL(link.href);
 }
 
 // 验证 Token 有效性（备用）
