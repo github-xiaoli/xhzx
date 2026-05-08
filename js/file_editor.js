@@ -172,7 +172,13 @@ async function saveFile() {
     if (!currentFilePath) return;
     const token = getToken();
     const newContent = document.getElementById("file-content").value;
-    const b64Content = btoa(unescape(encodeURIComponent(newContent)));
+
+    // 正确的 UTF-8 → Base64 编码（避免 "bad base-64" 错误）
+    const encoder = new TextEncoder();
+    const data = encoder.encode(newContent);
+    const binary = Array.from(data, byte => String.fromCharCode(byte)).join('');
+    const b64Content = btoa(binary);
+
     try {
         await githubPut(currentFilePath, b64Content, `Update ${currentFilePath}`, token, currentFileSha);
         showMessage("保存成功", "success");
