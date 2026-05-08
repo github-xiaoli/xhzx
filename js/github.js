@@ -48,7 +48,7 @@ function decodeBase64Content(base64content) {
     return new TextDecoder('utf-8').decode(bytes);
 }
 
-// --- GitHub API 封装（自动携带 Token） ---
+// --- GitHub API 封装 ---
 async function githubGet(path) {
     const url = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
     const headers = {};
@@ -136,92 +136,98 @@ function fileToBase64(file) {
     });
 }
 
-// ========== 下载函数（针对 WebView/APK 优化） ==========
+// ========== 下载函数（兼容 WebView / APK） ==========
 
-// 统一的：直接通过 URL 触发系统下载（避免 fetch 跨域）
+// 构建 Basic Auth URL（Token 作为密码）
+function buildBasicAuthUrl(originalUrl) {
+    const token = getToken();
+    if (!token) throw new Error("未登录");
+    // 使用 x-access-token 作为用户名（GitHub 忽略用户名，仅验证密码）
+    const urlObj = new URL(originalUrl);
+    urlObj.username = 'x-access-token';
+    urlObj.password = token;
+    return urlObj.toString();
+}
+
+// 通用下载触发函数
 function triggerDownload(url, filename) {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename || '';
-    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
         document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
     }, 100);
 }
 
-// 仓库 ZIP 备份下载
+// 1. 下载整个仓库 ZIP（备份）
 async function downloadRepoZip() {
     const token = getToken();
     if (!token) throw new Error("未登录");
 
-    // 方案 A：直接用带 token 的公开链接（绕过 CORS，适合 APK）
-    const directUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
-    // GitHub 支持 access_token 参数（虽然已弃用但依然有效）
-    const downloadUrl = `${directUrl}?access_token=${encodeURIComponent(token)}`;
+    const apiUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/main`;
 
+    // 方案 A：标准 fetch（需 CORS 支持）
     try {
-        // 先尝试 fetch（浏览器环境）
-        const resp = await fetch(directUrl, {
+        const resp = await fetch(apiUrl, {
             headers: { Authorization: `token ${token}` },
             redirect: 'follow'
         });
-        if (resp.ok) {
-            const blob = await resp.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            triggerDownload(blobUrl, `${GITHUB_REPO}_backup.zip`);
-            return;
-        }
-        throw new Error('status ' + resp.status);
+        if (!resp.ok) throw new Error('status ' + resp.status);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl, `${GITHUB_REPO}_backup.zip`);
+        return;
     } catch (e) {
-        // 回退到直接打开链接（APK 环境）
-        console.warn('fetch 下载失败，已切换到系统下载：', e);
-        window.location.href = downloadUrl;
+        console.warn('fetch 下载仓库失败，回退到 Basic Auth URL', e);
+        // 方案 B：使用 Basic Auth URL 直接触发下载
+        const basicUrl = buildBasicAuthUrl(apiUrl);
+        triggerDownload(basicUrl, `${GITHUB_REPO}_backup.zip`);
     }
 }
 
-// 下载单个文件
+// 2. 下载单个文件
 async function downloadSingleFile(filePath) {
     const token = getToken();
     if (!token) throw new Error("未登录");
 
-    const directUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`;
-    const downloadUrl = `${directUrl}?access_token=${encodeURIComponent(token)}`;
+    const apiUrl = `${API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`;
 
+    // 尝试先获取文件元数据（以得到正确的文件名和内容）
     try {
-        // 先用 fetch 获取文件内容，再触发下载（浏览器可用）
         const data = await githubGet(filePath);
         if (!data) throw new Error("文件不存在");
-        const byteChars = atob(data.content);
-        const bytes = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) {
-            bytes[i] = byteChars.charCodeAt(i);
+
+        // 使用 download_url 并通过 Basic Auth 获取原始内容
+        const downloadUrl = data.download_url;
+        if (downloadUrl) {
+            // 直接通过 Basic Auth URL 下载原始内容（避免 fetch 跨域）
+            const basicRawUrl = buildBasicAuthUrl(downloadUrl);
+            triggerDownload(basicRawUrl, data.name);  // 强制使用原始文件名
+            return;
         }
-        const blob = new Blob([bytes], { type: 'application/octet-stream' });
-        const blobUrl = URL.createObjectURL(blob);
-        triggerDownload(blobUrl, data.name);
-    } catch (e) {
-        // 回退：直接打开 GitHub 的 raw 内容链接（需要 raw URL）
-        // 注意：GitHub raw 链接格式为 https://raw.githubusercontent.com/...
-        // 但我们没有直接对应的 raw URL，这里用 API 的下载端点
-        console.warn('fetch 单文件失败，切换系统下载：', e);
-        // 改用 API 的下载端点（会重定向到 raw 内容）
-        window.location.href = downloadUrl;
+    } catch (fetchErr) {
+        console.warn('获取文件元数据失败，尝试拼接 raw URL', fetchErr);
     }
+
+    // 回退：拼接 raw.githubusercontent.com 路径（假设文件在 main 分支）
+    const assumedRawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${filePath}`;
+    const basicUrl = buildBasicAuthUrl(assumedRawUrl);
+    const filename = filePath.split('/').pop() || 'file';
+    triggerDownload(basicUrl, filename);
 }
 
-// 下载文件夹为 ZIP（需要 JSZip，并在 APK 中做 fallback）
+// 3. 下载文件夹为 ZIP
 async function downloadFolderAsZip(folderPath) {
-    // 如果 JSZip 不可用，直接报错（或可改为用仓库备份替代）
     if (typeof JSZip === 'undefined') {
-        alert("当前环境不支持打包文件夹，请使用电脑端或下载整个仓库备份");
+        alert("当前环境不支持打包文件夹，请下载整个仓库备份。");
         return;
     }
 
+    // 尝试用 JSZip 在前端打包
     try {
-        // 优先使用 JSZip 在前端打包
         const zip = new JSZip();
         async function addToZip(dirPath, zipFolder) {
             const entries = await githubGet(dirPath);
@@ -248,13 +254,12 @@ async function downloadFolderAsZip(folderPath) {
         const blobUrl = URL.createObjectURL(blob);
         triggerDownload(blobUrl, (folderPath.split('/').pop() || 'folder') + '.zip');
     } catch (e) {
-        // ZIP 打包失败时，回退为下载整个仓库（同样用 access_token 方式）
-        console.error('文件夹ZIP失败，尝试下载整个仓库：', e);
+        console.error('打包文件夹失败，回退到下载整个仓库', e);
         await downloadRepoZip();
     }
 }
 
-// 验证 Token 有效性（备用）
+// 验证 Token 有效性
 async function fetchUserInfo(token) {
     try {
         const resp = await fetch(`${API_BASE}/user`, {
