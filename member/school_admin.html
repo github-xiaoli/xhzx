@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校内违纪管理</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>🏫 校内违纪记录管理</h1>
+    <div id="message"></div>
+
+    <!-- 录入表单 -->
+    <h2>录入违纪记录</h2>
+    <form id="school-form">
+        <div class="form-group">
+            <label>学号 (8位)</label>
+            <input type="text" id="school-student-id" placeholder="入学年份+班级+学号，如20260301" required>
+        </div>
+        <div class="form-group">
+            <label>姓名</label>
+            <input type="text" id="school-name" required>
+        </div>
+        <div class="form-group">
+            <label>分值（支持小数，0分表示警告）</label>
+            <input type="number" id="school-points" step="0.1" min="0" placeholder="0 或正数" required>
+        </div>
+        <div class="form-group">
+            <label>违纪事由</label>
+            <textarea id="school-reason" rows="3" required></textarea>
+        </div>
+        <div class="form-group">
+            <label>附件（可选，多文件）</label>
+            <input type="file" id="school-attachments" multiple>
+        </div>
+        <button type="submit">保存记录</button>
+    </form>
+
+    <hr>
+    <!-- 查询区域 -->
+    <h2>查询记录</h2>
+    <div class="form-inline">
+        <input type="text" id="school-query-id" placeholder="输入学号查询">
+        <button id="school-query-btn">查询</button>
+    </div>
+    <div id="school-query-result"></div>
+
+    <br>
+    <button onclick="window.location.href='backend.html'" style="background:#6c757d;">返回后台</button>
+</div>
+
+<script src="../js/github.js"></script>
+<script src="../js/school_penalty.js"></script>
+</body>
+</html>

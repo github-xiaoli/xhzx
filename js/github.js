@@ -271,3 +271,22 @@ async function fetchUserInfo(token) {
         throw e;
     }
 }
+// 安全 UTF-8 转 Base64（避免 btoa 报错）
+function utf8ToBase64(str) {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    let binary = '';
+    bytes.forEach(byte => binary += String.fromCharCode(byte));
+    return btoa(binary);
+}
+
+// 从 Base64 安全解码（TextDecoder 已存在，无需额外添加）
+// 可增加一个辅助函数 textToBase64 别名，略。
+
+function utf8ToBase64(str) {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    let binary = '';
+    bytes.forEach(byte => binary += String.fromCharCode(byte));
+    return btoa(binary);
+}
