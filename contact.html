@@ -25,7 +25,6 @@
             position: relative;
         }
         
-        /* 添加半透明背景层，提高文字可读性 */
         body::before {
             content: '';
             position: fixed;
@@ -42,7 +41,6 @@
             margin: 0 auto;
         }
         
-        /* 返回按钮样式 */
         .back-btn {
             display: inline-flex;
             align-items: center;
@@ -68,7 +66,6 @@
             font-size: 0.9em;
         }
         
-        /* 主标题样式 */
         .page-title {
             text-align: center;
             margin-bottom: 40px;
@@ -90,7 +87,6 @@
             border-radius: 2px;
         }
         
-        /* 联系方式板块容器 */
         .contact-sections {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -98,7 +94,6 @@
             margin-top: 20px;
         }
         
-        /* 每个板块的样式 */
         .contact-section {
             background-color: white;
             border-radius: 15px;
@@ -141,7 +136,6 @@
             color: #2c3e50;
         }
         
-        /* 地址板块样式 */
         .address-text {
             font-size: 1.1rem;
             margin-bottom: 20px;
@@ -163,7 +157,6 @@
             border: none;
         }
         
-        /* 微信板块样式 */
         .wechat-info {
             display: flex;
             flex-direction: column;
@@ -228,7 +221,6 @@
             background: linear-gradient(to right, #2ecc71, #27ae60);
         }
         
-        /* 邮箱板块样式 */
         .email-info {
             display: flex;
             flex-direction: column;
@@ -271,6 +263,59 @@
             box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
         }
         
+        /* 新增电话板块样式 */
+        .phone-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .phone-name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .phone-number {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            background-color: #f8f9fa;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px dashed #27ae60;
+            text-align: center;
+            width: 100%;
+            letter-spacing: 1px;
+        }
+        
+        .call-btn {
+            background: linear-gradient(to right, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            width: 100%;
+            justify-content: center;
+            margin-top: auto;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .call-btn:hover {
+            background: linear-gradient(to right, #1e8449, #27ae60);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+        
         /* 响应式设计 */
         @media (max-width: 768px) {
             .contact-sections {
@@ -301,7 +346,7 @@
                 font-size: 1.3rem;
             }
             
-            .email-address, .wechat-id {
+            .email-address, .wechat-id, .phone-number {
                 font-size: 1rem;
             }
             
@@ -310,7 +355,6 @@
             }
         }
         
-        /* 底部信息 */
         .footer {
             text-align: center;
             margin-top: 50px;
@@ -320,7 +364,6 @@
             font-size: 0.9rem;
         }
         
-        /* 提示信息样式 */
         .notification {
             position: fixed;
             top: 20px;
@@ -345,16 +388,13 @@
 </head>
 <body>
     <div class="container">
-        <!-- 返回按钮 -->
         <a href="index.html" class="back-btn">
             <i class="fas fa-arrow-left"></i>
             返回首页
         </a>
         
-        <!-- 页面标题 -->
         <h1 class="page-title">联系我们</h1>
         
-        <!-- 联系方式板块 -->
         <div class="contact-sections">
             <!-- 地址板块 -->
             <div class="contact-section">
@@ -370,7 +410,6 @@
                 </p>
                 
                 <div class="map-container">
-                    <!-- 修改为图片，点击跳转到地图链接 -->
                     <a href="https://ditu.amap.com/place/B0FFJ1YEVC" target="_blank" class="address-link">
                         <img src="/../image/door.png"  width="325" height="325" class="map-image">
                     </a>
@@ -392,7 +431,6 @@
                     <div class="head_image">
                         <img src="/image/head_cao.jpg" width="170" height="170">
                     </div>
-                    
                 </div>
                 
                 <button class="copy-btn" id="copyWechatBtn">
@@ -427,16 +465,37 @@
                     发送邮件
                 </button>
             </div>
+
+            <!-- 新增电话联系板块 -->
+            <div class="contact-section">
+                <div class="section-header">
+                    <div class="section-icon" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">
+                        <i class="fas fa-phone-alt"></i>
+                    </div>
+                    <h2 class="section-title">电话联系</h2>
+                </div>
+                
+                <div class="phone-info">
+                    <p class="phone-name">李语晨</p>
+                    <div class="phone-number">+86 136 2198 3029</div>
+                    <p style="color: #666; text-align: center; font-size: 0.95rem;">
+                        点击下方按钮，直接拨打电话
+                    </p>
+                </div>
+                
+                <a href="tel:+8613621983029" class="call-btn">
+                    <i class="fas fa-phone"></i>
+                    拨打电话
+                </a>
+            </div>
         </div>
         
-        <!-- 底部信息 -->
         <div class="footer">
             <p>© 2026 徐汇中学器材管理组 版权所有 </p>
             <strong>本页面由AI生成</strong>
         </div>
     </div>
     
-    <!-- 复制成功提示 -->
     <div class="notification" id="notification">
         <i class="fas fa-check-circle"></i>
         <span id="notificationText">微信号已复制到剪贴板</span>
@@ -447,24 +506,20 @@
         document.getElementById('copyWechatBtn').addEventListener('click', function() {
             const wechatId = 'Bobcao918';
             
-            // 使用现代剪贴板API
             navigator.clipboard.writeText(wechatId)
                 .then(() => {
                     showNotification('微信号已复制到剪贴板');
                     
-                    // 改变按钮状态
                     const btn = document.getElementById('copyWechatBtn');
                     btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
                     btn.classList.add('copied');
                     
-                    // 3秒后恢复按钮状态
                     setTimeout(() => {
                         btn.innerHTML = '<i class="far fa-copy"></i> 复制微信号';
                         btn.classList.remove('copied');
                     }, 3000);
                 })
                 .catch(err => {
-                    // 降级方案：使用传统document.execCommand方法
                     const textArea = document.createElement('textarea');
                     textArea.value = wechatId;
                     document.body.appendChild(textArea);
@@ -482,11 +537,9 @@
             const subject = '网站联系';
             const body = '邮件内容';
             
-            // 使用mailto链接唤起系统邮箱
             window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         });
         
-        // 显示通知函数
         function showNotification(message) {
             const notification = document.getElementById('notification');
             const notificationText = document.getElementById('notificationText');
@@ -494,15 +547,12 @@
             notificationText.textContent = message;
             notification.classList.add('show');
             
-            // 3秒后隐藏通知
             setTimeout(() => {
                 notification.classList.remove('show');
             }, 3000);
         }
         
-        // 添加一些交互效果
         document.addEventListener('DOMContentLoaded', function() {
-            // 为每个板块添加延迟显示效果
             const sections = document.querySelectorAll('.contact-section');
             sections.forEach((section, index) => {
                 section.style.opacity = '0';
@@ -515,7 +565,6 @@
                 }, index * 200);
             });
             
-            // 二维码悬停效果
             const qrcodeContainer = document.querySelector('.qrcode-container');
             if (qrcodeContainer) {
                 qrcodeContainer.addEventListener('mouseenter', function() {
