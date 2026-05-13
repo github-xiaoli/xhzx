@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>违纪查询 - 手机版</title>
+    <link rel="stylesheet" href="../css/phone.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        .query-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .query-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e6ed;
+            border-radius: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .query-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .score-summary {
+            background: #f0f4ff;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .score-number {
+            font-size: 38px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .record-item {
+            background: #fff;
+            border: 1px solid #ecf0f1;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .record-points {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e67e22;
+        }
+        .record-time {
+            font-size: 12px;
+            color: #95a5a6;
+        }
+        .attach-thumb {
+            width: 60px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-right: 6px;
+        }
+        .empty-msg {
+            text-align: center;
+            color: #95a5a6;
+            padding: 30px 0;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #3498db;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<div class="query-card">
+    <div class="query-title">
+        <span>🔍</span> 违纪查询
+    </div>
+
+    <div class="input-group" id="id-group">
+        <label>学号</label>
+        <input type="text" id="student-id" placeholder="8位学号" maxlength="8">
+    </div>
+    <div class="input-group" id="name-group" style="display:none;">
+        <label>姓名</label>
+        <input type="text" id="student-name" placeholder="姓名">
+    </div>
+    <button class="query-btn" id="query-btn">查询</button>
+
+    <div id="result-area" style="display:none;"></div>
+    <div id="empty-msg" class="empty-msg" style="display:none;">暂无违纪记录</div>
+
+    <a href="backend.html" class="back-link">返回后台（需登录）</a>
+</div>
+
+<script>
+    (async function() {
+        let mode = 'open';
+        try {
+            const modeRes = await fetch('/config/query_mode.json');
+            if (modeRes.ok) {
+                const modeData = await modeRes.json();
+                mode = modeData.mode || 'open';
+            }
+        } catch (e) {}
+
+        if (mode === 'strict') {
+            document.getElementById('name-group').style.display = 'block';
+        }
+
+        let allRecords = [];
+        try {
+            const indexRes = await fetch('/school_penalties/index.json');
+            if (indexRes.ok) allRecords = await indexRes.json();
+        } catch (e) {}
+
+        document.getElementById('query-btn').addEventListener('click', () => {
+            const sid = document.getElementById('student-id').value.trim();
+            const nameInput = document.getElementById('student-name')?.value.trim() || '';
+            const resultArea = document.getElementById('result-area');
+            const emptyMsg = document.getElementById('empty-msg');
+
+            if (!sid) { alert('请输入学号'); return; }
+
+            let records = allRecords.filter(r => r.student_id === sid);
+
+            if (mode === 'strict') {
+                if (!nameInput) { alert('请输入姓名'); return; }
+                if (records.length === 0 || records[0].name !== nameInput) {
+                    resultArea.style.display = 'none';
+                    emptyMsg.style.display = 'block';
+                    emptyMsg.textContent = '未找到记录或姓名不匹配';
+                    return;
+                }
+            }
+
+            if (records.length === 0) {
+                resultArea.style.display = 'none';
+                emptyMsg.style.display = 'block';
+                emptyMsg.textContent = '暂无违纪记录';
+                return;
+            }
+
+            const totalPoints = records.reduce((sum, r) => sum + r.points, 0);
+            let html = `
+                <div class="score-summary">
+                    <div class="score-number">${totalPoints}</div>
+                    <div>累计违纪分数</div>
+                </div>
+            `;
+            records.forEach(r => {
+                html += `
+                <div class="record-item">
+                    <div class="record-header">
+                        <span class="record-points">⚠️ ${r.points}分</span>
+                        <span class="record-time">${new Date(r.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div>📋 ${escapeHtml(r.reason)}</div>
+                    ${r.attachments && r.attachments.length > 0 ? renderAttachments(r.attachments) : '<div style="color:#bdc3c7;">无附件</div>'}
+                </div>`;
+            });
+            resultArea.innerHTML = html;
+            resultArea.style.display = 'block';
+            emptyMsg.style.display = 'none';
+        });
+
+        function renderAttachments(attachments) {
+            let html = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">';
+            attachments.forEach(path => {
+                const rawUrl = `https://raw.githubusercontent.com/github-xiaoli/xhzx/main/${path}`;
+                const filename = path.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) {
+                    html += `<a href="${rawUrl}" target="_blank"><img src="${rawUrl}" class="attach-thumb"></a>`;
+                } else {
+                    html += `<a href="${rawUrl}" target="_blank" style="text-decoration:none; color:#3498db;">📎 ${filename}</a>`;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    })();
+</script>
+</body>
+</html>

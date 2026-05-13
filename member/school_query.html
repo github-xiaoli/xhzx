@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校内违纪查询</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .query-card {
+            max-width: 700px;
+            margin: 30px auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+        .query-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .query-title span {
+            font-size: 36px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #34495e;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e0e6ed;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        .input-group input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.2);
+        }
+        .query-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .query-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102,126,234,0.4);
+        }
+        .result-container {
+            margin-top: 30px;
+        }
+        .score-summary {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .score-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .record-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .record-item {
+            background: #fff;
+            border: 1px solid #ecf0f1;
+            border-radius: 14px;
+            padding: 18px;
+            transition: box-shadow 0.2s;
+        }
+        .record-item:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .record-points {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e67e22;
+        }
+        .record-time {
+            color: #95a5a6;
+            font-size: 14px;
+        }
+        .record-reason {
+            color: #2c3e50;
+            margin-top: 5px;
+        }
+        .attach-list {
+            margin-top: 10px;
+        }
+        .empty-msg {
+            text-align: center;
+            color: #95a5a6;
+            padding: 40px 0;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #3498db;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<div class="query-card">
+    <div class="query-title">
+        <span>🔍</span> 校内违纪记录查询
+    </div>
+
+    <!-- 动态切换：严格模式下显示姓名输入框 -->
+    <div class="input-group" id="id-group">
+        <label>学号</label>
+        <input type="text" id="student-id" placeholder="请输入8位学号" maxlength="8" autocomplete="off">
+    </div>
+    <div class="input-group" id="name-group" style="display:none;">
+        <label>姓名</label>
+        <input type="text" id="student-name" placeholder="请输入姓名" autocomplete="off">
+    </div>
+    <button class="query-btn" id="query-btn">查询违纪记录</button>
+
+    <div class="result-container" id="result-area" style="display:none;">
+        <!-- 动态渲染 -->
+    </div>
+    <div class="empty-msg" id="empty-msg" style="display:none;">暂无违纪记录</div>
+
+    <a href="backend.html" class="back-link">返回后台（需登录）</a>
+</div>
+
+<script>
+(async function() {
+    // 1. 读取查询模式
+    let mode = 'open';
+    try {
+        const modeRes = await fetch('/config/query_mode.json');
+        if (modeRes.ok) {
+            const modeData = await modeRes.json();
+            mode = modeData.mode || 'open';
+        }
+    } catch (e) {
+        console.warn('读取查询模式失败，默认开放模式');
+    }
+
+    // 根据模式显示/隐藏姓名输入框
+    if (mode === 'strict') {
+        document.getElementById('name-group').style.display = 'block';
+    }
+
+    // 2. 加载违纪索引（全量记录）
+    let allRecords = [];
+    try {
+        const indexRes = await fetch('/school_penalties/index.json');
+        if (indexRes.ok) {
+            allRecords = await indexRes.json();
+        }
+    } catch (e) {
+        console.error('加载违纪索引失败', e);
+        allRecords = [];
+    }
+
+    // 3. 查询按钮点击事件
+    document.getElementById('query-btn').addEventListener('click', () => {
+        const sid = document.getElementById('student-id').value.trim();
+        const nameInput = document.getElementById('student-name')?.value.trim() || '';
+
+        const resultArea = document.getElementById('result-area');
+        const emptyMsg = document.getElementById('empty-msg');
+
+        if (!sid) {
+            alert('请输入学号');
+            return;
+        }
+
+        // 筛选该学号的记录
+        let records = allRecords.filter(r => r.student_id === sid);
+
+        // 严格模式：校验姓名（取第一条记录中的姓名）
+        if (mode === 'strict') {
+            if (!nameInput) {
+                alert('请输入姓名');
+                return;
+            }
+            if (records.length === 0) {
+                resultArea.style.display = 'none';
+                emptyMsg.style.display = 'block';
+                emptyMsg.textContent = '未找到该学号的违纪记录或姓名不匹配';
+                return;
+            }
+            const recordName = records[0].name;
+            if (recordName !== nameInput) {
+                resultArea.style.display = 'none';
+                emptyMsg.style.display = 'block';
+                emptyMsg.textContent = '姓名不匹配，无法查看';
+                return;
+            }
+        }
+
+        // 无记录
+        if (records.length === 0) {
+            resultArea.style.display = 'none';
+            emptyMsg.style.display = 'block';
+            emptyMsg.textContent = '暂无违纪记录';
+            return;
+        }
+
+        // 计算总分
+        const totalPoints = records.reduce((sum, r) => sum + r.points, 0);
+
+        // 渲染结果
+        let html = `
+            <div class="score-summary">
+                <div class="score-number">${totalPoints}</div>
+                <div class="score-label">累计违纪分数</div>
+            </div>
+            <div class="record-list">
+        `;
+        records.forEach(r => {
+            const date = new Date(r.timestamp).toLocaleString();
+            html += `
+                <div class="record-item">
+                    <div class="record-header">
+                        <span class="record-points">⚠️ ${r.points}分</span>
+                        <span class="record-time">${date}</span>
+                    </div>
+                    <div class="record-reason">📋 ${escapeHtml(r.reason)}</div>
+                    ${r.attachments && r.attachments.length > 0 ? renderAttachments(r.attachments) : '<div style="color:#bdc3c7;">无附件</div>'}
+                </div>
+            `;
+        });
+        html += '</div>';
+        resultArea.innerHTML = html;
+        resultArea.style.display = 'block';
+        emptyMsg.style.display = 'none';
+    });
+
+    // 附件渲染（沿用风格）
+    function renderAttachments(attachments) {
+        let html = '<div class="attach-list" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">';
+        attachments.forEach(path => {
+            const parts = path.split('/');
+            const filename = parts.pop();
+            const rawUrl = `https://raw.githubusercontent.com/github-xiaoli/xhzx/main/${path}`;
+            const ext = filename.split('.').pop().toLowerCase();
+            if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) {
+                html += `<div style="width:80px; height:60px; overflow:hidden; border-radius:8px;">
+                    <a href="${rawUrl}" target="_blank"><img src="${rawUrl}" style="width:100%; height:100%; object-fit:cover;"></a>
+                </div>`;
+            } else {
+                html += `<a href="${rawUrl}" target="_blank" style="text-decoration:none; color:#3498db;">📎 ${filename}</a>`;
+            }
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+})();
+</script>
+</body>
+</html>

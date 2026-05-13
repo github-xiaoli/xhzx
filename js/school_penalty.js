@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const queryBtn = document.getElementById("school-query-btn");
     const queryResult = document.getElementById("school-query-result");
 
+    // 录入违纪
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         msgBox.textContent = "";
@@ -32,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const attachmentPaths = [];
             const uploadedShas = [];
 
-            // 上传附件到 attachments/school/{recordId}/
+            // 上传附件
             if (files.length > 0) {
                 showMessage("正在上传附件...", "info");
                 for (const file of files) {
@@ -52,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
+            // 创建记录
             showMessage("正在保存违纪记录...", "info");
             const record = {
                 id: recordId,
@@ -67,6 +69,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const recordB64 = utf8ToBase64(JSON.stringify(record, null, 2));
             await githubPut(recordPath, recordB64, `Create school penalty for ${studentId}`, token);
 
+            // 更新索引
+            await updateIndex(token);
             showMessage(`✓ 违纪记录已保存！学号: ${studentId}, 分值: ${points}`, "success");
             form.reset();
         } catch (err) {
@@ -74,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 查询
+    // 查询违纪记录（后台管理用）
     queryBtn.addEventListener("click", async () => {
         const sid = document.getElementById("school-query-id").value.trim();
         if (!sid) {
@@ -111,6 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // 删除记录
     async function onDeleteSchoolRecord(e) {
         const btn = e.currentTarget;
         const id = btn.dataset.id;
@@ -119,19 +124,21 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.textContent = "删除中…";
         try {
             const token = getToken();
-            // 删除记录文件
             const recordPath = `school_penalties/school_penalty_${id}.json`;
             const fileData = await githubGet(recordPath);
             if (!fileData) throw new Error("记录文件不存在");
             await githubDelete(recordPath, fileData.sha, token);
 
-            // 删除附件目录
+            // 删除附件
             const attachDir = `attachments/school/${id}`;
             const attachFiles = await listFiles(attachDir);
             for (const f of attachFiles) {
                 const fData = await githubGet(`${attachDir}/${f}`);
                 if (fData) await githubDelete(`${attachDir}/${f}`, fData.sha, token).catch(() => {});
             }
+
+            // 更新索引
+            await updateIndex(token);
 
             document.getElementById(`school-row-${id}`).remove();
             alert("删除成功");
@@ -143,9 +150,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ===== 工具函数 =====
     async function querySchoolRecords(sid) {
         const files = await listFiles("school_penalties");
-        const matches = files.filter(f => f.includes(`_${sid}.json`));
+        const matches = files.filter(f => f.includes(`_${sid}.json`) && f !== 'index.json');
         const records = [];
         for (const f of matches) {
             const data = await githubGet(`school_penalties/${f}`);
@@ -158,7 +166,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return records;
     }
 
-    // 复用附件渲染（可从 admin.js 复制或公用，这里内联一份）
     function renderAttachments(attachments) {
         if (!attachments || attachments.length === 0) return "无";
         let html = "<div class='attach-list'>";
@@ -192,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return html;
     }
 
-    // 预览监听
     document.addEventListener("click", function(e) {
         if (e.target.classList.contains("preview-btn")) {
             const url = e.target.dataset.url;
@@ -208,8 +214,8 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="preview-backdrop"></div>
             <div class="preview-content">
                 <span class="preview-close">&times;</span>
-                ${type === 'pdf' 
-                    ? `<iframe src="${url}" width="100%" height="600px"></iframe>` 
+                ${type === 'pdf'
+                    ? `<iframe src="${url}" width="100%" height="600px"></iframe>`
                     : `<img src="${url}" style="max-width:100%; max-height:80vh;">`}
             </div>`;
         document.body.appendChild(modal);
@@ -225,3 +231,25 @@ document.addEventListener("DOMContentLoaded", () => {
         msgBox.className = `message ${type}`;
     }
 });
+
+// 索引维护（供保存/删除后调用）
+async function updateIndex(token) {
+    try {
+        const indexPath = 'school_penalties/index.json';
+        const allFiles = await listFiles('school_penalties');
+        const recordFiles = allFiles.filter(f => f.startsWith('school_penalty_') && f.endsWith('.json') && f !== 'index.json');
+        const records = [];
+        for (const f of recordFiles) {
+            const data = await githubGet(`school_penalties/${f}`);
+            if (data) {
+                records.push(JSON.parse(decodeBase64Content(data.content)));
+            }
+        }
+        records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const indexB64 = utf8ToBase64(JSON.stringify(records));
+        const existing = await githubGet(indexPath);
+        await githubPut(indexPath, indexB64, 'Update school penalties index', token, existing?.sha);
+    } catch (err) {
+        console.error('更新违纪索引失败:', err);
+    }
+}
