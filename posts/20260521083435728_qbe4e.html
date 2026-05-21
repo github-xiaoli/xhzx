@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 响应式适配移动端 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI赋能体育组 - 智慧体育新未来</title>
+    <!-- 引入图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+            scroll-behavior: smooth;
+        }
+
+        /* 全局颜色变量 - 体育蓝+科技紫 */
+        :root {
+            --sport-blue: #165DFF;
+            --ai-purple: #7B61FF;
+            --light-blue: #E8F3FF;
+            --dark-text: #333;
+            --light-text: #666;
+        }
+
+        body {
+            color: var(--dark-text);
+            background-color: #f9f9f9;
+        }
+
+        /* 导航栏样式 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 999;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--sport-blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo i {
+            color: var(--ai-purple);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--dark-text);
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--sport-blue);
+        }
+
+        /* Banner区域 */
+        .banner {
+            margin-top: 70px;
+            height: 80vh;
+            background: linear-gradient(135deg, var(--sport-blue), var(--ai-purple));
+            display: flex;
+            align-items: center;
+            padding: 0 5%;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .banner-content {
+            max-width: 600px;
+            z-index: 2;
+        }
+
+        .banner h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .banner p {
+            font-size: 18px;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: white;
+            color: var(--sport-blue);
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* 装饰圆形 */
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .circle1 {
+            width: 300px;
+            height: 300px;
+            right: -100px;
+            bottom: -100px;
+        }
+
+        .circle2 {
+            width: 200px;
+            height: 200px;
+            left: 10%;
+            top: 20%;
+        }
+
+        /* 通用板块样式 */
+        .section {
+            padding: 80px 5%;
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 36px;
+            color: var(--dark-text);
+            margin-bottom: 15px;
+        }
+
+        .section-desc {
+            max-width: 700px;
+            margin: 0 auto 50px;
+            color: var(--light-text);
+            font-size: 16px;
+        }
+
+        /* AI应用场景卡片 */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 40px 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .card i {
+            font-size: 40px;
+            color: var(--sport-blue);
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 22px;
+            margin-bottom: 15px;
+            color: var(--dark-text);
+        }
+
+        .card p {
+            color: var(--light-text);
+            line-height: 1.6;
+        }
+
+        /* 优势区域 */
+        .advantage {
+            background: var(--light-blue);
+        }
+
+        /* 页脚 */
+        .footer {
+            background: #222;
+            color: white;
+            padding: 40px 5%;
+            text-align: center;
+        }
+
+        .footer p {
+            opacity: 0.8;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            .banner h1 {
+                font-size: 32px;
+            }
+            .banner {
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 导航栏 -->
+    <div class="navbar">
+        <div class="logo">
+            <i class="fas fa-robot"></i> AI体育组
+        </div>
+        <div class="nav-links">
+            <a href="#home">首页</a>
+            <a href="#application">AI应用</a>
+            <a href="#advantage">核心优势</a>
+            <a href="#team">团队介绍</a>
+        </div>
+    </div>
+
+    <!-- Banner区域 -->
+    <div class="banner" id="home">
+        <div class="circle circle1"></div>
+        <div class="circle circle2"></div>
+        <div class="banner-content">
+            <h1>AI赋能体育组<br>开启智慧体育新时代</h1>
+            <p>人工智能技术全面融入体育教学、训练、赛事与管理，让体育更科学、更高效、更智能</p>
+            <a href="#application" class="btn">查看AI应用场景</a>
+        </div>
+    </div>
+
+    <!-- AI应用场景 -->
+    <div class="section" id="application">
+        <h2 class="section-title">AI在体育组的核心应用</h2>
+        <p class="section-desc">人工智能技术覆盖体育教学、运动训练、体能监测、赛事分析等全场景，为体育组提供全方位智能化支持</p>
+        
+        <div class="cards">
+            <div class="card">
+                <i class="fas fa-running"></i>
+                <h3>AI动作智能矫正</h3>
+                <p>通过摄像头实时捕捉学生运动动作，AI自动分析姿势标准度，实时给出矫正建议，提升训练安全性与效果。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-heartbeat"></i>
+                <h3>体能数据智能监测</h3>
+                <p>AI实时采集心率、步数、消耗等体能数据，生成个性化体能报告，为体育教学提供科学依据。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-chart-line"></i>
+                <h3>赛事分析与预测</h3>
+                <p>AI自动分析比赛数据、战术布局，生成专业赛事报告，辅助教练制定最优比赛策略。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-graduation-cap"></i>
+                <h3>智慧体育教学</h3>
+                <p>AI根据学生体质差异，自动生成个性化体育课程，实现因材施教，提升教学质量。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-shield-alt"></i>
+                <h3>运动风险预警</h3>
+                <p>AI实时监测学生运动状态，提前预判运动损伤风险，保障校园体育活动安全。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-trophy"></i>
+                <h3>特长生智能选拔</h3>
+                <p>通过AI数据分析学生运动天赋、潜力，精准选拔体育特长生，提升选拔科学性。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 核心优势 -->
+    <div class="section advantage" id="advantage">
+        <h2 class="section-title">AI进入体育组的核心优势</h2>
+        <p class="section-desc">科技赋能体育，打破传统体育教学与训练局限，实现体育工作数字化、智能化升级</p>
+        
+        <div class="cards">
+            <div class="card">
+                <i class="fas fa-brain"></i>
+                <h3>科学精准</h3>
+                <p>AI基于大数据分析，替代主观判断，让体育教学、训练、评价更精准、更科学。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-clock"></i>
+                <h3>高效便捷</h3>
+                <p>自动完成数据统计、成绩分析、课程规划，大幅减轻体育教师工作负担。</p>
+            </div>
+            <div class="card">
+                <i class="fas fa-user-check"></i>
+                <h3>个性化教学</h3>
+                <p>AI精准识别每位学生的体质特点，提供专属运动方案，真正实现一人一策。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 团队介绍 -->
+    <div class="section" id="team">
+        <h2 class="section-title">AI体育组团队</h2>
+        <p class="section-desc">由体育教师、AI技术专家、运动康复师共同组成，致力于打造校园智慧体育新生态</p>
+        
+        <div style="margin-top:20px; font-size:18px; color:var(--light-text);">
+            创新 | 专业 | 科技 | 健康
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <div class="footer">
+        <p>© 2025 AI赋能体育组 | 智慧体育 科技创新</p>
+    </div>
+
+</body>
+</html>
